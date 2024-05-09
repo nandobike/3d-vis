@@ -449,7 +449,7 @@ pore_range_area_tuple = st.slider(
     "Select a pore range to calculate specific surface area:",
     np.min(df_PSD_pb[0]/10), np.max(df_PSD_pb[0]/10), (2.05, 3.84))
 
-pore_range_area = np.array([pore_range_area_tuple[0], pore_range_area_tuple[1]]) #Enter pore range here
+pore_range_area = np.array([float(pore_range_area_tuple[0]), float(pore_range_area_tuple[1])]) #Enter pore range here
 
 ssa_pore_range_area = np.interp(pore_range_area, df_PSD_pb[0]/10, cum_area)
 area_between = ssa_pore_range_area[-1] - ssa_pore_range_area[0]
