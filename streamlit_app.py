@@ -273,3 +273,39 @@ st.pyplot(fig)
 #    plt.savefig(path.join("results", (base_exp_filename + "_render_TEM.tiff")),
 #                bbox_inches='tight',
 #                dpi=160)
+
+
+
+
+
+#Some structures need to be not considered since are not atomistic but Kelvin
+sum_solution = sum(solution)
+sum_solution_model = sum(solution[:structures_model])
+sum_solution_kelvin = sum(solution[structures_model:])
+
+total_area = sum(df_structures['Total surface area m^2/g']*solution)
+simulation_temperature = sum((df_structures['T(K)']*solution)[:structures_model])/sum_solution_model
+
+time_sim = 2e-9 #2 nanoseconds in seconds
+kB = 8.617e-5 #eV/K
+activ_energy = 6 #eV
+temp_exp = 1/simulation_temperature - kB / activ_energy * np.log(time_sim/3600)
+temp_exp = 1/temp_exp
+
+text_results_info = f"Sum of solution = {sum_solution:.3f}\n"
+text_results_info += f"Sum of solution only atomistic = {sum_solution_model:.3f}\n"
+text_results_info += f"Sum of solution only Kelvin = {sum_solution_kelvin:.3f}\n"
+text_results_info += f"Kelvin part = {sum_solution_kelvin/sum_solution*100:.2f}%\n"
+text_results_info += f"Density g/cc (excludes Kelvin) = " \
+                     f"{sum((df_structures['System density, g/cm^3']*solution)[:structures_model]):.4f}\n"
+text_results_info += f"He volume cc/g (excludes Kelvin) = " \
+      f"{sum((df_structures['Helium volume in cm^3/g']*solution)[:structures_model]):.4f}\n"
+text_results_info += f"Geometric (point accessible) volume in cm^3/g = " \
+      f"{sum(df_structures['Geometric (point accessible) volume in cm^3/g']*solution):.4f}\n"
+#print(f"Probe-occupiable volume cc/g = {sum(df_structures['V PO cm3/g']*solution):.4f}")
+#print(f"Accessible area m2/g = {int(sum(df_structures[' Accessible surface area per mass in m^2/g']*solution)):d}")
+text_results_info += f"Total area m2/g = {int(total_area):d}\n"
+text_results_info += f"Simulation temperature K (excludes Kelvin) = {simulation_temperature:.0f}\n"
+text_results_info += f"Equivalent graphitization temperature K (excludes Kelvin) = {temp_exp:.0f}"
+
+st.text(text_results_info)
