@@ -256,7 +256,8 @@ st.write("These values are not normalized.\nSum over 100% means that pore walls 
 
 
 
-
+st.header('Microstructure Visualization')
+st.write('These are the top 3 structures that contribute to your isotherm, both atomic structure and simulated TEM image.')
 # Create a figure of a render and simulated TEM with the top contributors
 fig, ax = plt.subplots(2,3, figsize=(16,10))
 for i in range(3):
@@ -310,6 +311,8 @@ st.pyplot(fig)
 
 
 
+st.header('Morphological Information')
+st.write('Below are textural statistics predicted using 3D-VIS for the isotherm provided.')
 
 #Some structures need to be not considered since are not atomistic but Kelvin
 sum_solution = sum(solution)
@@ -342,6 +345,10 @@ text_results_info += f"Simulation temperature K (excludes Kelvin) = {simulation_
 text_results_info += f"Equivalent graphitization temperature K (excludes Kelvin) = {temp_exp:.0f}"
 st.text(text_results_info)
 
+
+
+
+st.header('Pore Size Distribution (PSD)')
 
 def PascalTriangle(n):
     # This calculates a Pascal triangle that will be used for smoothing
@@ -412,6 +419,7 @@ st.pyplot(fig)
 
 
 
+st.header('Surface Area and PSD')
 
 fig, ax = plt.subplots()
 ax.plot(df_PSD_pb[0]/10,
