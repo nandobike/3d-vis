@@ -175,3 +175,50 @@ st.pyplot(fig)
 
 
 
+
+
+#plt.figure(figsize=(10, 6))
+fig, ax = plt.subplots(1,2, figsize=(14,4))
+ax[0].bar(range(1, structures+1), solution*100)
+ax[0].set_xlabel("Structure number")
+ax[0].set_ylabel("Contribution (%)")
+ax[0].set_title('Contribution of each structure')
+#Density-Temperature space plot
+ax[1].scatter(df_structures['System density, g/cm^3'][:structures_model], #Kelvin structures not included
+              df_structures['T(K)'][:structures_model],
+              s=solution[:structures_model]*2000,
+              alpha=0.8)
+ax[1].set_xlabel('Density (g/cc)')
+ax[1].set_ylabel('Simulated annealing temperature (K)')
+ax[1].set_title(r'Contribution of each structure in $\rho$-T space')
+st.pyplot(fig)
+
+
+
+
+
+
+# Print top contributions
+top_n = 15
+st.write("Contributions before normalization\n" + "-"*34)
+for i in range(top_n):
+# Use this if all the range is desired: for i in range(structures):
+    struct = np.argsort(solution)[::-1][i]
+    if struct+1 > structures_model:
+        kelvin_deco = ' (Kelvin structure)'
+    else:
+        kelvin_deco = ''
+    st.write(f"Structure #{struct+1}:\t{solution[struct]*100:0.3f}%" + kelvin_deco)
+
+st.write("-"*34)
+st.write(f"Sum = {solution.sum()*100:.3f}%")
+st.write("These values are not normalized.\nSum over 100% means that pore walls are thicker than in the molecular models.")
+
+
+
+
+
+
+
+
+
