@@ -441,9 +441,16 @@ cum_area = cumulative_trapezoid(PSD_solution*10/(df_PSD_pb[0]/10), x=df_PSD_pb[0
 cum_area /= cum_area[-1]
 cum_area *= total_area
 pore_range_area = np.array([2.05, 3.84]) #Enter pore range here
+
+pore_range_area_tuple = st.slider(
+    "Select a range of values",
+    0.0, 5.5, (2.05, 3.84))
+
+pore_range_area = np.array([pore_range_area_tuple[0], pore_range_area_tuple[1]]) #Enter pore range here
+
 ssa_pore_range_area = np.interp(pore_range_area, df_PSD_pb[0]/10, cum_area)
 area_between = ssa_pore_range_area[-1] - ssa_pore_range_area[0]
-st.text(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m2/g')
+
 fig, ax = plt.subplots()
 ax.plot(df_PSD_pb[0]/10, cum_area)
 ax.set_xlabel('Pore size (nm)')
