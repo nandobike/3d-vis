@@ -113,7 +113,63 @@ solution, residual = nnls(np_isotherm, exp_iso_interp)
 st.text(f"Residual total= {residual:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
 st.text(f"Residual per point = {residual/np_pressure_gcmc.size:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
 
+def calculate_isotherm(solution):
+    # This function sums the contributions of every kernel structure
+    # in order to calculate the predicted isotherm.
+    isotherm = np.zeros(np_pressure_gcmc.size) #create an empty vector
+    for i in range(structures):
+        isotherm = isotherm + solution[i] * np.array(np_isotherm[:,i])
+    return isotherm
 
+
+
+
+# Plot experimental datapoints and show the fit
+log_scale_plot = True #use True if you want to plot using logarithmic scale in x
+fig, ax = plt.subplots(2, gridspec_kw={'height_ratios': [1, 3]}, dpi=120) #, figsize=(3,3)
+
+# Top plot for error
+ax[0].set_title('Experimental data and predicted isotherm')
+ax[0].plot(np_pressure_gcmc, exp_iso_interp-calculate_isotherm(solution), marker='o', linestyle='solid', color='tab:orange')
+if log_scale_plot:
+    ax[0].set_xscale('log')
+ax[0].set_ylabel("Error (cm$^3$/g)")
+#ax[0].set_ylabel("Error")
+if log_scale_plot:
+    ax[0].set_xlim(left=1e-7, right=1.4)
+else:
+    ax[0].set_xlim(left=-0.02, right=1)
+
+ax[0].axes.get_xaxis().set_ticks([])
+#ax[0].axes.get_yaxis().set_ticks([])
+
+# Bottom plot of isotherm and fitted isotherm
+ax[1].plot(exp_iso[:,0], exp_iso[:,1],
+           label='Experimental',
+           marker='o',
+           linestyle='none',
+           color='tab:orange')
+ax[1].plot(np_pressure_gcmc, calculate_isotherm(solution),
+           label='Solution',
+           linestyle='solid',
+           color='black')
+if log_scale_plot:
+    ax[1].set_xscale('log')
+ax[1].set_xlabel("Relative pressure P/P$_0$")
+#ax[1].set_xlabel("P/P$_0$")
+ax[1].set_ylabel("Adsorbed amount (cm$^3$/g)")
+#ax[1].set_ylabel("Adsorption")
+ax[1].legend()
+ax[1].set_ylim(bottom=0)
+if log_scale_plot:
+    ax[1].set_xlim(left=1e-7, right=1.4)
+else:
+    ax[1].set_xlim(left=-0.02, right=1)
+#if log_scale_plot:
+#    ax[1].set_xlim(left=1e-7, right=1.4)
+#ax[1].axes.get_yaxis().set_ticks([])
+plt.ylim(bottom=0)
+st.pyplot(fig)
 
 
 
