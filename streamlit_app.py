@@ -390,7 +390,7 @@ ax.plot(df_PSD_pb[0]/10,
 ax.set_xlabel('Pore size (nm)')
 ax.set_ylabel('-dA/dr')
 ax.legend()
-ax.title('Surface area as function of pore size')
+ax.set_title('Surface area as function of pore size')
 st.pyplot(fig)        
 
 
