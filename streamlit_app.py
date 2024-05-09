@@ -18,6 +18,15 @@ st.title('3D-VIS Isotherm Analysis')
 st.text('3D Structure Prediction of Nanoporous Carbons via Gas Adsorption')
 
 
+
+
+
+
+
+
+
+
+
 #Structures available in the kernel
 structures = 89
 #structures = 78 #This needs to be added if using models only
@@ -79,13 +88,24 @@ np_pressure_gcmc = np.array(df_isotherm)[points_to_remove:,0]
 #load experimental isotherm
 #It must be a tab-separated file with two columns.
 #First column is relative pressure and second column adsorbed volume in units cc STP/g
-experimental_isotherm_file = 'examples/a20_lao.tsv'
+file = st.file_uploader("Upload isotherm file")
+if file is None:
+    file = "examples/a20_lao.tsv"
+    st.write(f"Filename is None. Loading a default file: {file}")
+    file_parameters = read_parameters(file)
+    file_name_print = file
+else:
+    #for line in filename:
+    #    st.write(line.decode('cp1252').rstrip())
+    file_parameters = read_parameters_uploaded(file)
+    file_name_print = file.name
+#experimental_isotherm_file = 'examples/a20_lao.tsv'
 
 
 
 base_exp_filename = 'Isotherm_data' #path.splitext(experimental_isotherm_file)[0]
 
-exp_iso = np.genfromtxt (experimental_isotherm_file, delimiter="\t") #load isotherm file into numpy array
+exp_iso = np.genfromtxt (file, delimiter="\t") #load isotherm file into numpy array
 exp_iso_interp = np.interp(np_pressure_gcmc, exp_iso[:,0], exp_iso[:,1]) #interpolate isotherm to points of the kernel
 
 
