@@ -79,7 +79,7 @@ experimental_isotherm_file = 'examples/a20_lao.tsv'
 
 
 
-base_exp_filename = path.splitext(experimental_isotherm_file)[0]
+base_exp_filename = 'Isotherm_data' #path.splitext(experimental_isotherm_file)[0]
 
 exp_iso = np.genfromtxt (experimental_isotherm_file, delimiter="\t") #load isotherm file into numpy array
 exp_iso_interp = np.interp(np_pressure_gcmc, exp_iso[:,0], exp_iso[:,1]) #interpolate isotherm to points of the kernel
