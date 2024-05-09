@@ -90,15 +90,15 @@ fig, ax = plt.subplots()
 ax.plot(exp_iso[:,0], exp_iso[:,1],label='Experimental', marker='o', linestyle='none')
 ax.set_xlabel("Relative pressure P/P$_0$")
 ax.set_ylabel("Adsorbed amount (cm$^3$/g)")
-#plt.ylim(bottom=0)  # adjust the bottom leaving top unchanged
+ax.set_ylim(bottom=0)  # adjust the bottom leaving top unchanged
 ax.plot(np_pressure_gcmc, exp_iso_interp,
          label='Experimental interpolated',
          marker='x',
          markersize=4,
          linestyle='none')
-#plt.xscale('log')
-#plt.title('Experimental Isotherm and Interpolation to Kernel')
-#plt.legend()
+ax.set_xscale('log')
+ax.set_title('Experimental Isotherm and Interpolation to Kernel')
+ax.legend()
 #plt.show()
 st.pyplot(fig)
 
