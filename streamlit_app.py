@@ -91,7 +91,7 @@ np_pressure_gcmc = np.array(df_isotherm)[points_to_remove:,0]
 file = st.file_uploader("Upload isotherm file")
 if file is None:
     file = "examples/a20_lao.tsv"
-    st.write(f"Filename is None. Loading a default file: {file}")
+    st.write(f"No file was uploaded. Loading a default isotherm file: {file}")
     #file_parameters = read_parameters(file)
     #file_name_print = file
 else:
@@ -99,8 +99,8 @@ else:
     #    st.write(line.decode('cp1252').rstrip())
     #file_parameters = read_parameters_uploaded(file)
     #file_name_print = file.name
-    1+1
-#experimental_isotherm_file = 'examples/a20_lao.tsv'
+    #1+1
+    st.write('A file was uploaded')
 
 
 
