@@ -14,6 +14,10 @@ try:
 except:
     print("Old Scipy, cumulative PSD will throw error later")
 
+st.title('3D-VIS Isotherm Analysis')
+st.text('3D Structure Prediction of Nanoporous Carbons via Gas Adsorption')
+
+
 #Structures available in the kernel
 structures = 89
 #structures = 78 #This needs to be added if using models only
@@ -102,6 +106,12 @@ ax.legend()
 #plt.show()
 st.pyplot(fig)
 
+#Use non-negative least squares to find the coefficients that fit the experimental isotherm from the kernel isotherms
+#https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.nnls.html
+solution, residual = nnls(np_isotherm, exp_iso_interp)
+
+st.text(f"Residual total= {residual:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
+st.text(f"Residual per point = {residual/np_pressure_gcmc.size:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
 
 
 
@@ -109,5 +119,3 @@ st.pyplot(fig)
 
 
 
-
-st.write('Hello world!')
