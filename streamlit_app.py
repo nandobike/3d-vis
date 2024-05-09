@@ -89,6 +89,8 @@ np_PSD_pb = np.array(df_PSD_pb)[:,1:]
 
 
 st.header('Isotherm Data Load')
+st.markdown('Upload your isotherm as a text file. The file must only contain datapoints in ascending pressure order. Two columns, first for relative pressure, second for adsorbed amount in cc STP/g'. See an example [here](https://raw.githubusercontent.com/nandobike/3d-vis/main/examples/a20_lao.tsv)
+)
 #load experimental isotherm
 #It must be a tab-separated file with two columns.
 #First column is relative pressure and second column adsorbed volume in units cc STP/g
