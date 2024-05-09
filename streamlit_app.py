@@ -105,25 +105,23 @@ else:
     #file_name_print = file.name
     #1+1
     st.write('A file was uploaded')
-
-
-
 base_exp_filename = 'Isotherm_data' #path.splitext(experimental_isotherm_file)[0]
-
 exp_iso = np.genfromtxt (file, delimiter="\t") #load isotherm file into numpy array
-exp_iso_interp = np.interp(np_pressure_gcmc, exp_iso[:,0], exp_iso[:,1]) #interpolate isotherm to points of the kernel
+
+
 
 
 st.header('Data Analysis')
 st.write('Usually it is necessary to remove a few experimental points from the very low pressures since they are very inaccurate')
 #Remove some initial experimental points where the experimental data is usually flawed
 #points_to_remove = 13 #for a20_lao
-points_to_remove = st.slider("Points to remove", 0, 20, 13)
+points_to_remove = st.slider("Points to remove", 0, np.shape(exp_iso)[0], 13)
 
 
 np_isotherm = np.array(df_isotherm)[points_to_remove:,1:]
 np_pressure_gcmc = np.array(df_isotherm)[points_to_remove:,0]
 
+exp_iso_interp = np.interp(np_pressure_gcmc, exp_iso[:,0], exp_iso[:,1]) #interpolate isotherm to points of the kernel
 
 fig, ax = plt.subplots()
 ax.plot(exp_iso[:,0], exp_iso[:,1],label='Experimental', marker='o', linestyle='none')
