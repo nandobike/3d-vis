@@ -64,7 +64,25 @@ np_PSD_pb = np.array(df_PSD_pb)[:,1:]
 
 
 
+#Remove some initial experimental points where the experimental data is usually flawed
+points_to_remove = 13 #for a20_lao
 
+
+np_isotherm = np.array(df_isotherm)[points_to_remove:,1:]
+np_pressure_gcmc = np.array(df_isotherm)[points_to_remove:,0]
+
+
+#load experimental isotherm
+#It must be a tab-separated file with two columns.
+#First column is relative pressure and second column adsorbed volume in units cc STP/g
+experimental_isotherm_file = 'examples/a20_lao.tsv'
+
+
+
+base_exp_filename = path.splitext(experimental_isotherm_file)[0]
+
+exp_iso = np.genfromtxt (experimental_isotherm_file, delimiter="\t") #load isotherm file into numpy array
+exp_iso_interp = np.interp(np_pressure_gcmc, exp_iso[:,0], exp_iso[:,1]) #interpolate isotherm to points of the kernel
 
 
 
