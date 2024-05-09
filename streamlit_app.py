@@ -92,13 +92,14 @@ file = st.file_uploader("Upload isotherm file")
 if file is None:
     file = "examples/a20_lao.tsv"
     st.write(f"Filename is None. Loading a default file: {file}")
-    file_parameters = read_parameters(file)
-    file_name_print = file
+    #file_parameters = read_parameters(file)
+    #file_name_print = file
 else:
     #for line in filename:
     #    st.write(line.decode('cp1252').rstrip())
-    file_parameters = read_parameters_uploaded(file)
-    file_name_print = file.name
+    #file_parameters = read_parameters_uploaded(file)
+    #file_name_print = file.name
+    1+1
 #experimental_isotherm_file = 'examples/a20_lao.tsv'
 
 
