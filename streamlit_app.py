@@ -307,5 +307,114 @@ text_results_info += f"Geometric (point accessible) volume in cm^3/g = " \
 text_results_info += f"Total area m2/g = {int(total_area):d}\n"
 text_results_info += f"Simulation temperature K (excludes Kelvin) = {simulation_temperature:.0f}\n"
 text_results_info += f"Equivalent graphitization temperature K (excludes Kelvin) = {temp_exp:.0f}"
-
 st.text(text_results_info)
+
+
+def PascalTriangle(n):
+    # This calculates a Pascal triangle that will be used for smoothing
+    # https://www.askpython.com/python/examples/pascals-triangle-using-python
+    # https://danielmuellerkomorowska.com/2020/06/02/smoothing-data-by-rolling-average-with-numpy/
+    trow = [1]
+    y = [0]
+    for x in range(n):
+        trow=[left+right for left,right in zip(trow+y, y+trow)]
+    return trow
+
+
+# Calculate PSD
+PSD_weighted = np_PSD_pb
+PSD_solution = (np.array(df_structures['Helium volume in cm^3/g']) * solution * PSD_weighted).sum(axis=1)
+#Smooth the PSD
+smooth_kernel_size = 10 # Increase this for smoother results, 70 is for paper
+smooth_kernel = np.array(PascalTriangle(smooth_kernel_size))
+smooth_kernel = smooth_kernel / smooth_kernel.sum()
+PSD_solution_smooth = np.convolve(PSD_solution, smooth_kernel, mode='same')
+#First 3 points are not zero, but should not plot, we can use NaNs
+PSD_solution_smooth[0:3] = np.nan
+#Create a vector of the PSD sizes in Angstrom for Kelvin
+psd_kelvin_size = np.arange(df_PSD_pb[0].iloc[-1],500,1,dtype=float)
+
+#Create a vector of zeros to store what the PSD for Kelvin will be
+psd_kelvin = np.zeros_like(psd_kelvin_size)
+
+for index, value in df_structures['moment1'][structures_model:].items():
+    #print(index, value)
+    index_pore = np.searchsorted(psd_kelvin_size, value)
+    psd_kelvin[index_pore] = df_structures['Helium volume in cm^3/g'][index] * solution[index-1]
+
+smooth_kernel_size = 400 # Increase this for smoother results
+smooth_kernel = np.array(PascalTriangle(smooth_kernel_size))
+smooth_kernel = smooth_kernel / smooth_kernel.sum()
+PSD_kelvin_smooth = np.convolve(psd_kelvin, smooth_kernel, mode='same')
+
+# Plot PSD
+fig, ax = plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(8,4))
+
+for i in range(2):
+    ax[i].plot(df_PSD_pb[0]/10, PSD_solution*10, color='lavender') # Use light color for original PSD solution
+    ax[i].plot(df_PSD_pb[0]/10,
+               PSD_solution_smooth*10,
+               linewidth=3,
+               label='Atomic model',
+               color="tab:blue")
+    ax[i].set_xlabel("Pore size (nm)")
+
+ax[1].plot(np.append(df_PSD_pb[0]/10, psd_kelvin_size[0]/10)[-2:],
+           np.append(PSD_solution_smooth*10, 0)[-2:],
+           color="tab:blue",
+           linewidth=2, linestyle=(0, (1, 1)) )
+    
+#ax[1].plot(psd_kelvin_size/10, psd_kelvin)
+ax[1].plot(psd_kelvin_size/10,
+           PSD_kelvin_smooth*10,
+           linewidth=3, label='Kelvin', color='darkseagreen')
+ax[1].legend()
+ax[0].set_ylabel("Pore volume -dV(r)/dr")
+ax[0].set_xlim([0,6])
+ax[1].set_xlim([0.05,100])
+ax[1].set_xscale('log')
+fig.suptitle('PSD from atomic structures')
+fig.tight_layout()
+st.pyplot(fig)        
+
+
+
+
+fig, ax = plt.subplots()
+ax.plot(df_PSD_pb[0]/10,
+         PSD_solution_smooth*10/(df_PSD_pb[0]/10),
+         label='Smooth')
+ax.plot(df_PSD_pb[0]/10,
+         PSD_solution*10/(df_PSD_pb[0]/10),
+         label='Raw')
+ax.set_xlabel('Pore size (nm)')
+ax.set_ylabel('-dA/dr')
+ax.legend()
+ax.title('Surface area as function of pore size')
+st.pyplot(fig)        
+
+
+
+
+cum_area = cumulative_trapezoid(PSD_solution*10/(df_PSD_pb[0]/10), x=df_PSD_pb[0]/10, initial=0)
+cum_area /= cum_area[-1]
+cum_area *= total_area
+pore_range_area = np.array([2.05, 3.84]) #Enter pore range here
+ssa_pore_range_area = np.interp(pore_range_area, df_PSD_pb[0]/10, cum_area)
+area_between = ssa_pore_range_area[-1] - ssa_pore_range_area[0]
+st.text(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m2/g')
+fig, ax = plt.subplots()
+ax.plot(df_PSD_pb[0]/10, cum_area)
+ax.set_xlabel('Pore size (nm)')
+ax.set_ylabel(r'Surface area (m$^2$/g)')
+filter_area_plot = (df_PSD_pb[0]/10 > pore_range_area[0]) & (df_PSD_pb[0]/10 < pore_range_area[1])
+#print(filter_area_plot.sum())
+ax.fill_between((df_PSD_pb[0]/10)[filter_area_plot], cum_area[filter_area_plot], color='bisque')
+ax.text(pore_range_area.mean(),
+        ssa_pore_range_area[0]/2,
+        rf'{area_between:.1f} m$^2$/g',
+        horizontalalignment='center',
+        verticalalignment='center')
+        #transform=ax.transAxes)
+st.pyplot(fig)        
+st.text(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m2/g')
