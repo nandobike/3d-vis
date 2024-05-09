@@ -442,12 +442,14 @@ cum_area /= cum_area[-1]
 cum_area *= total_area
 #pore_range_area = np.array([2.05, 3.84]) #Enter pore range here
 
-st.write(np.max(df_PSD_pb[0]/10))
-st.write(pore_range_area_tuple[0])
+
 
 pore_range_area_tuple = st.slider(
     "Select a pore range to calculate specific surface area:",
     np.min(df_PSD_pb[0]/10), np.max(df_PSD_pb[0]/10), (2.05, 3.84))
+
+st.write(np.max(df_PSD_pb[0]/10))
+st.write(pore_range_area_tuple[0])
 
 pore_range_area = np.array([float(pore_range_area_tuple[0]), float(pore_range_area_tuple[1])]) #Enter pore range here
 
