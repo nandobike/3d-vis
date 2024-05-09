@@ -230,10 +230,9 @@ st.pyplot(fig)
 
 
 
-
+st.header('Contribution of Kernel Structures to Experimental Isotherm')
 # Print top contributions
 top_n = 15
-st.write("Contributions before normalization\n" + "-"*34)
 for i in range(top_n):
 # Use this if all the range is desired: for i in range(structures):
     struct = np.argsort(solution)[::-1][i]
@@ -241,10 +240,10 @@ for i in range(top_n):
         kelvin_deco = ' (Kelvin structure)'
     else:
         kelvin_deco = ''
-    st.write(f"Structure #{struct+1}:\t{solution[struct]*100:0.3f}%" + kelvin_deco)
+    st.text(f"Structure #{struct+1}:\t{solution[struct]*100:0.3f}%" + kelvin_deco)
 
-st.write("-"*34)
-st.write(f"Sum = {solution.sum()*100:.3f}%")
+st.text("-"*34)
+st.text(f"Sum = {solution.sum()*100:.3f}%")
 st.write("These values are not normalized.\nSum over 100% means that pore walls are thicker than in the molecular models.")
 
 
@@ -442,14 +441,9 @@ cum_area /= cum_area[-1]
 cum_area *= total_area
 #pore_range_area = np.array([2.05, 3.84]) #Enter pore range here
 
-
-
 pore_range_area_tuple = st.slider(
     "Select a pore range to calculate specific surface area:",
     np.min(df_PSD_pb[0]/10), np.max(df_PSD_pb[0]/10), (2.05, 3.84))
-
-st.write(np.max(df_PSD_pb[0]/10))
-st.write(pore_range_area_tuple[0])
 
 pore_range_area = np.array([float(pore_range_area_tuple[0]), float(pore_range_area_tuple[1])]) #Enter pore range here
 
