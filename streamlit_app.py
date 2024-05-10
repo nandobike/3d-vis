@@ -14,6 +14,45 @@ try:
 except:
     print("Old Scipy, cumulative PSD will throw error later")
 
+
+
+
+
+
+def find_range(contents): #Reads Belsorp
+    string_find = '"No."\t"Pe/kPa"\t"P0/kPa"\t"Vd/ml"\t"V/ml(STP) g-1"'
+    start_adsorption, start_desorption = [i for i,x in enumerate(contents) if x==string_find]
+    string_find = '0\t0\t0\t0\t0'
+    end_adsorption, end_desorption = [i for i,x in enumerate(contents) if x==string_find]    
+    return (start_adsorption, end_adsorption, start_desorption, end_desorption)
+
+def read_branch(contents, branch): #Reads Belsorp
+    #Finds the start and end of branches
+    start_adsorption, end_adsorption, start_desorption, end_desorption = find_range(contents)
+    if branch == 'adsorption':
+        skip_header = start_adsorption+1
+        max_rows = end_adsorption-start_adsorption-1
+    elif branch == 'desorption':
+        skip_header = start_desorption+1
+        max_rows = end_desorption-start_desorption-1
+    isotherm = np.genfromtxt(contents,
+                             delimiter='\t',
+                             skip_header=skip_header,
+                             max_rows=max_rows,
+                             encoding='shift-jis',
+                             usecols=(1,2,4))
+    return np.column_stack((isotherm[:,0]/isotherm[:,1], isotherm[:,2]))
+
+
+
+
+
+
+
+
+
+
+
 st.title('3D-VIS Isotherm Analysis')
 
 multi = '''This is the app that solves the microstructure of a porous carbon based on the paper:
@@ -89,7 +128,7 @@ np_PSD_pb = np.array(df_PSD_pb)[:,1:]
 
 
 st.header('Isotherm Data Load')
-st.markdown('Upload your isotherm as a text file. The file must only contain datapoints in ascending pressure order. Two columns, first for relative pressure, second for adsorbed amount in cc STP/g. See an example [here](https://raw.githubusercontent.com/nandobike/3d-vis/main/examples/a20_lao.tsv)')
+st.markdown('Upload your isotherm as a text file. The file must only contain datapoints in ascending pressure order. Two columns separated by tabs, first for relative pressure, second for adsorbed amount in cc STP/g. See an example [here](https://raw.githubusercontent.com/nandobike/3d-vis/main/examples/a20_lao.tsv)')
 #load experimental isotherm
 #It must be a tab-separated file with two columns.
 #First column is relative pressure and second column adsorbed volume in units cc STP/g
@@ -105,9 +144,35 @@ else:
     #file_parameters = read_parameters_uploaded(file)
     #file_name_print = file.name
     #1+1
-    st.write('A file was uploaded')
+    st.write(f'A file was uploaded: {file.name} as {file.type}')
+
+#print('-------------------')
+#print(file)
+#print(file.type)
+
+#If a Belsorp file is loaded
+if file.type == 'application/octet-stream':
+    st.write('Read octet-stream, will attempt load Belsorp format')
+    contents = []
+    for line in file:
+        #print(line)
+        contents.append(line.decode('shift-jis').rstrip())
+        #print(line)
+    #print(contents)
+    #st.write(find_range(contents))
+    #start_adsorption, end_adsorption, start_desorption, end_desorption = find_range(contents)
+    #print(start_adsorption, end_adsorption, start_desorption, end_desorption)
+    exp_iso = read_branch(contents, 'adsorption')
+else: #Now the standard file
+    exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
+
+
+
+
+
+
+
 base_exp_filename = 'Isotherm_data' #path.splitext(experimental_isotherm_file)[0]
-exp_iso = np.genfromtxt (file, delimiter="\t") #load isotherm file into numpy array
 
 
 
