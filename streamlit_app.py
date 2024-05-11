@@ -69,6 +69,8 @@ Questions? Suggestions? Complaints? Shoot us an email: fvb@vallejos.cl
 '''
 st.markdown(multi)
 
+st.image('summary.jpg', caption='Summary of the 3D-VIS method')
+
 
 
 
@@ -128,7 +130,7 @@ np_PSD_pb = np.array(df_PSD_pb)[:,1:]
 
 
 
-
+st.divider()
 st.header('Isotherm Data Load')
 st.markdown('Upload your isotherm as a text file. The file must only contain datapoints in ascending pressure order. Two columns separated by tabs, first for relative pressure, second for adsorbed amount in cc STP/g. See an example [here](https://raw.githubusercontent.com/nandobike/3d-vis/main/examples/a20_lao.tsv)')
 #load experimental isotherm
@@ -183,9 +185,9 @@ base_exp_filename = 'Isotherm_data' #path.splitext(experimental_isotherm_file)[0
 
 
 
-
-st.header('Data Analysis')
-st.write('Usually it is necessary to remove a few experimental points from the very low pressures since they are very inaccurate. Look at the error in the fitted isotherm plot to know how many to remove.')
+st.divider()
+st.header('Data Cleaning and Validation')
+st.write('Usually it is necessary to remove a few experimental points from the very low pressures since they are very inaccurate. Look at the error in the fitted isotherm plot in the Results section to know how many to remove.')
 #Remove some initial experimental points where the experimental data is usually flawed
 #points_to_remove = 13 #for a20_lao
 points_to_remove = st.slider("Points to remove", 0, np.shape(exp_iso)[0], 0)
@@ -196,7 +198,7 @@ np_pressure_gcmc = np.array(df_isotherm)[points_to_remove:,0]
 
 exp_iso_interp = np.interp(np_pressure_gcmc, exp_iso[:,0], exp_iso[:,1]) #interpolate isotherm to points of the kernel
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(7,4))
 ax.plot(exp_iso[:,0], exp_iso[:,1],label='Experimental', marker='o', linestyle='none')
 ax.set_xlabel("Relative pressure P/P$_0$")
 ax.set_ylabel("Adsorbed amount (cm$^3$/g)")
@@ -215,12 +217,16 @@ ax.grid(color='aliceblue')
 #plt.show()
 st.pyplot(fig)
 
+
+
+
+st.divider()
+st.header('Analysis Results')
+st.write('Here the results of fitting the experimental isotherm with the kernel isotherms. Look at the error plot and go back to remove highly inaccurate points if necessary.')
+
 #Use non-negative least squares to find the coefficients that fit the experimental isotherm from the kernel isotherms
 #https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.nnls.html
 solution, residual = nnls(np_isotherm, exp_iso_interp)
-
-st.text(f"Residual total= {residual:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
-st.text(f"Residual per point = {residual/np_pressure_gcmc.size:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
 
 def calculate_isotherm(solution):
     # This function sums the contributions of every kernel structure
@@ -289,6 +295,8 @@ else:
 plt.ylim(bottom=0)
 st.pyplot(fig)
 
+st.text(f"Residual total= {residual:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
+st.text(f"Residual per point = {residual/np_pressure_gcmc.size:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
 
 
 
@@ -296,7 +304,7 @@ st.pyplot(fig)
 
 
 #plt.figure(figsize=(10, 6))
-fig, ax = plt.subplots(1,2, figsize=(14,4))
+fig, ax = plt.subplots(1,2, figsize=(11,4))
 ax[0].bar(range(1, structures+1), solution*100)
 ax[0].set_xlabel("Structure number")
 ax[0].set_ylabel("Contribution (%)")
@@ -397,7 +405,7 @@ st.pyplot(fig)
 
 
 
-
+st.divider()
 st.header('Morphological Information')
 st.write('Below are textural statistics predicted using 3D-VIS for the isotherm provided.')
 
@@ -434,7 +442,7 @@ st.text(text_results_info)
 
 
 
-
+st.divider()
 st.header('Pore Size Distribution (PSD)')
 
 def PascalTriangle(n):
@@ -553,7 +561,7 @@ ax.text(pore_range_area.mean(),
         verticalalignment='center')
         #transform=ax.transAxes)
 st.pyplot(fig)        
-st.write(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m2/g')
+st.text(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m2/g')
 
 
 
