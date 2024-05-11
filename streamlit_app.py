@@ -22,9 +22,12 @@ except:
 
 
 def find_range(contents): #Reads Belsorp
-    string_find = '"No."\t"Pe/kPa"\t"P0/kPa"\t"Vd/ml"\t"V/ml(STP) g-1"'
-    start_adsorption, start_desorption = [i for i,x in enumerate(contents) if x==string_find]
-    string_find = '0\t0\t0\t0\t0'
+    string_find = b'"No."\t"Pe/kPa"\t"P0/kPa"\t"Vd/ml"\t"V/ml(STP) g-1"'
+    string_find2 = b'"No."\t"Pe/kPa"\t"P0/kPa"\t"Vd/ml"\t"V/ml(STP)\x81Eg-1"'
+    #print(contents[35] == b'"No."\t"Pe/kPa"\t"P0/kPa"\t"Vd/ml"\t"V/ml(STP)\x81Eg-1"')
+    start_adsorption, start_desorption = \
+        [i for i,x in enumerate(contents) if ((x==string_find) or (x==string_find2))]
+    string_find = b'0\t0\t0\t0\t0'
     end_adsorption, end_desorption = [i for i,x in enumerate(contents) if x==string_find]    
     return (start_adsorption, end_adsorption, start_desorption, end_desorption)
 
@@ -159,18 +162,15 @@ else:
 if isinstance(file, str):
     exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
 
-#elif (file.type == 'application/octet-stream'):
+#elif (file.type == 'application/octet-stream'): #This is now not needed
 elif next(file) == b'====================\r\n': #If a Belsorp file is loaded
     st.write('This file seems to be Belsorp format, will attempt load.')
     contents = []
     for line in file:
         #print(line)
-        contents.append(line.decode('shift-jis').rstrip())
-        #print(line)
-    #print(contents)
-    #st.write(find_range(contents))
-    #start_adsorption, end_adsorption, start_desorption, end_desorption = find_range(contents)
-    #print(start_adsorption, end_adsorption, start_desorption, end_desorption)
+        #contents.append(line.decode('shift-jis').rstrip()) #this works new version
+        contents.append(line.rstrip())
+    #print(contents) #DEBUG
     exp_iso = read_branch(contents, 'adsorption')
 else: #Now the standard file
     exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
