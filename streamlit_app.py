@@ -150,9 +150,14 @@ else:
 #print(file)
 #print(file.type)
 
-#If a Belsorp file is loaded
-if file.type == 'application/octet-stream':
-    st.write('Read octet-stream, will attempt load Belsorp format')
+
+
+if isinstance(file, str):
+    exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
+
+#elif (file.type == 'application/octet-stream'):
+elif next(file) == b'====================\r\n': #If a Belsorp file is loaded
+    st.write('This file seems to be Belsorp format, will attempt load.')
     contents = []
     for line in file:
         #print(line)
