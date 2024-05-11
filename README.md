@@ -4,7 +4,13 @@ Script to solve 3D-VIS fit of the paper: 3D Nanostructure Prediction of Porous C
 
 [Here is the published paper in the Carbon journal](https://doi.org/10.1016/j.carbon.2023.118431)
 
-## Authors
+## Software Coding
+
+Fernando Vallejos-Burgos
+
+Have questions? [email me](mailto:fvb@vallejos.cl)
+
+## Manuscript Authors
 Fernando Vallejos-Burgos, Carla de Tomas, Nicholas J. Corrente, Koki Urita, Shuwen Wang, Chiharu Urita, Isamu Moriguchi, Irene Suarez-Martinez, Nigel Marks, Matthew H. Krohn, Radovan Kukobat, Alexander V. Neimark, Yury Gogotsi, Katsumi Kaneko
 
 ## Title
