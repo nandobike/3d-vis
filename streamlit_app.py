@@ -300,10 +300,12 @@ st.pyplot(fig)
 
 
 
-
-st.header('Contribution of Kernel Structures to Experimental Isotherm')
+st.divider()
+st.header('Contribution of Kernel')
+st.write('These are the top contributor structurs of the kernel to fit the experimantal adsorption isotherm')
 # Print top contributions
 top_n = 15
+contribution_string = ""
 for i in range(top_n):
 # Use this if all the range is desired: for i in range(structures):
     struct = np.argsort(solution)[::-1][i]
@@ -311,11 +313,12 @@ for i in range(top_n):
         kelvin_deco = ' (Kelvin structure)'
     else:
         kelvin_deco = ''
-    st.text(f"Structure #{struct+1}:\t{solution[struct]*100:0.3f}%" + kelvin_deco)
+    contribution_string += f"Structure #{struct+1}:\t{solution[struct]*100:0.3f}% {kelvin_deco}\n"
 
-st.text("-"*34)
-st.text(f"Sum = {solution.sum()*100:.3f}%")
-st.write("These values are not normalized.\nSum over 100% means that pore walls are thicker than in the molecular models.")
+contribution_string += "-"*34
+contribution_string += f"\nSum     =     {solution.sum()*100:.3f}%"
+st.text(contribution_string)
+st.write("These values are not normalized (and should not be). This means that a sum over 100% means that pore walls of the experimental samples are thicker than in the molecular models.")
 
 
 
