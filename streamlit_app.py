@@ -185,10 +185,10 @@ base_exp_filename = 'Isotherm_data' #path.splitext(experimental_isotherm_file)[0
 
 
 st.header('Data Analysis')
-st.write('Usually it is necessary to remove a few experimental points from the very low pressures since they are very inaccurate')
+st.write('Usually it is necessary to remove a few experimental points from the very low pressures since they are very inaccurate. Look at the error in the fitted isotherm plot to know how many to remove.')
 #Remove some initial experimental points where the experimental data is usually flawed
 #points_to_remove = 13 #for a20_lao
-points_to_remove = st.slider("Points to remove", 0, np.shape(exp_iso)[0], 13)
+points_to_remove = st.slider("Points to remove", 0, np.shape(exp_iso)[0], 0)
 
 
 np_isotherm = np.array(df_isotherm)[points_to_remove:,1:]
@@ -238,7 +238,7 @@ log_scale_plot = True #use True if you want to plot using logarithmic scale in x
 fig, ax = plt.subplots(2, gridspec_kw={'height_ratios': [1, 3]}, dpi=120) #, figsize=(3,3)
 
 # Top plot for error
-ax[0].set_title('Experimental data and predicted isotherm')
+ax[0].set_title('Experimental Data and Fitted Isotherm')
 ax[0].plot(np_pressure_gcmc, exp_iso_interp-calculate_isotherm(solution), marker='o', linestyle='solid', color='tab:orange')
 if log_scale_plot:
     ax[0].set_xscale('log')
