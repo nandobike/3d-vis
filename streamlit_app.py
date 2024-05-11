@@ -4,6 +4,8 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as img
+import matplotlib.ticker as ticker
+
 import pandas as pd
 from scipy.optimize import nnls
 #from os import path
@@ -199,14 +201,17 @@ ax.plot(exp_iso[:,0], exp_iso[:,1],label='Experimental', marker='o', linestyle='
 ax.set_xlabel("Relative pressure P/P$_0$")
 ax.set_ylabel("Adsorbed amount (cm$^3$/g)")
 ax.set_ylim(bottom=0)  # adjust the bottom leaving top unchanged
+ax.set_xlim(left=1e-8, right=1.4)
 ax.plot(np_pressure_gcmc, exp_iso_interp,
          label='Experimental interpolated',
          marker='x',
          markersize=4,
          linestyle='none')
 ax.set_xscale('log')
+ax.xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
 ax.set_title('Experimental Isotherm and Interpolation to Kernel')
 ax.legend()
+ax.grid(color='aliceblue')
 #plt.show()
 st.pyplot(fig)
 
@@ -237,10 +242,15 @@ ax[0].set_title('Experimental data and predicted isotherm')
 ax[0].plot(np_pressure_gcmc, exp_iso_interp-calculate_isotherm(solution), marker='o', linestyle='solid', color='tab:orange')
 if log_scale_plot:
     ax[0].set_xscale('log')
+    ax[0].xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
+
 ax[0].set_ylabel("Error (cm$^3$/g)")
+ax[0].grid(color='aliceblue')
+
 #ax[0].set_ylabel("Error")
 if log_scale_plot:
-    ax[0].set_xlim(left=1e-7, right=1.4)
+    ax[0].set_xlim(left=1e-8, right=1.4)
+    
 else:
     ax[0].set_xlim(left=-0.02, right=1)
 
@@ -259,14 +269,18 @@ ax[1].plot(np_pressure_gcmc, calculate_isotherm(solution),
            color='black')
 if log_scale_plot:
     ax[1].set_xscale('log')
+    ax[1].xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
+
 ax[1].set_xlabel("Relative pressure P/P$_0$")
 #ax[1].set_xlabel("P/P$_0$")
 ax[1].set_ylabel("Adsorbed amount (cm$^3$/g)")
 #ax[1].set_ylabel("Adsorption")
 ax[1].legend()
+ax[1].grid(color='aliceblue')
+
 ax[1].set_ylim(bottom=0)
 if log_scale_plot:
-    ax[1].set_xlim(left=1e-7, right=1.4)
+    ax[1].set_xlim(left=1e-8, right=1.4)
 else:
     ax[1].set_xlim(left=-0.02, right=1)
 #if log_scale_plot:
