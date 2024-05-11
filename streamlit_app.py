@@ -489,6 +489,7 @@ st.pyplot(fig)
 
 
 
+
 st.header('Surface Area and PSD')
 
 fig, ax = plt.subplots()
@@ -536,3 +537,34 @@ ax.text(pore_range_area.mean(),
         #transform=ax.transAxes)
 st.pyplot(fig)        
 st.write(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m2/g')
+
+
+
+
+
+cum_psd = cumulative_trapezoid(PSD_solution*10, x=df_PSD_pb[0]/10, initial=0)
+psd_export = np.array([df_PSD_pb[0]/10,
+                        PSD_solution*10,
+                        PSD_solution_smooth*10,
+                        cum_psd,
+                        cum_area]).T
+#header_psd_export = f"Pore size (nm)\tPSD\tSmoothed PSD\tCumulative PSD\tCumulative SSA"
+export_string = f"Pore size (nm)\tPSD\tSmoothed PSD\tCumulative PSD\tCumulative SSA\r\n"
+
+#print(psd_export.shape)
+
+for i in range(psd_export.shape[0]):
+    export_string += f"{psd_export[i,0]:.4f}\t{psd_export[i,1]:.7f}\t{psd_export[i,2]:.7f}\t{psd_export[i,3]:.7f}\t{psd_export[i,4]:.2f}\r\n"
+
+#np.savetxt(path.join("results", (base_exp_filename + "_export_PSD.tsv")),
+#            psd_export,
+#            delimiter='\t',
+#            header=header_psd_export,
+#            comments="")
+
+st.download_button(
+    label="Download PSD data as tab-separated values",
+    data=export_string,
+    file_name="export_PSD.tsv",
+    mime="text/plain",
+)
