@@ -574,11 +574,15 @@ st.header('Surface Area and PSD')
 
 fig, ax = plt.subplots()
 ax.plot(df_PSD_pb[0]/10,
-         PSD_solution_smooth*10/(df_PSD_pb[0]/10),
-         label='Smooth')
-ax.plot(df_PSD_pb[0]/10,
          PSD_solution*10/(df_PSD_pb[0]/10),
-         label='Raw')
+         label='Raw',
+         color='peachpuff')
+ax.plot(df_PSD_pb[0]/10,
+         PSD_solution_smooth*10/(df_PSD_pb[0]/10),
+         label='Smooth',
+         color='tab:blue',
+         linewidth=3)
+
 ax.set_xlabel('Pore size (nm)')
 ax.set_ylabel('-dA/dr')
 ax.legend()
