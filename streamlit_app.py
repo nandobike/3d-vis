@@ -334,7 +334,7 @@ st.pyplot(fig)
 
 st.divider()
 st.header('Contribution of Kernel')
-st.write('These are the top contributor structurs of the kernel to fit the experimantal adsorption isotherm')
+st.write('These are the top contributor structures of the kernel to fit the experimantal adsorption isotherm')
 # Print top contributions
 top_n = 15
 contribution_string = ""
@@ -364,7 +364,7 @@ st.write("These values are not normalized (and should not be). This means that a
 st.header('Microstructure Visualization')
 st.write('These are the top 3 structures that contribute to your isotherm, both atomic structure and simulated TEM image.')
 # Create a figure of a render and simulated TEM with the top contributors
-fig, ax = plt.subplots(2,3, figsize=(16,10))
+fig, ax = plt.subplots(2,3, figsize=(12,7))
 for i in range(3):
     structure_render = np.argsort(solution)[-1-i]+1
     if structure_render <= structures_model:
@@ -406,12 +406,57 @@ for i in range(3):
         ax[1,i].set_xticks([])
         ax[1,i].set_yticks([])
         ax[1,i].text(0.42,0.5, "No image")
-st.pyplot(fig)        
-#Save figure
-#if True: #set to True to save figure
-#    plt.savefig(path.join("results", (base_exp_filename + "_render_TEM.tiff")),
-#                bbox_inches='tight',
-#                dpi=160)
+st.pyplot(fig)     
+
+#Second figure
+show_more_structures = st.checkbox("Show next 3 structures")
+if show_more_structures:
+    fig, ax = plt.subplots(2,3, figsize=(12,7))
+    for i in range(3):
+        structure_render = np.argsort(solution)[-1-i-3]+1
+        #print(np.argsort(solution))
+        if structure_render <= structures_model:
+            file_render = f'rendered structures/{structure_render:03d}.png'
+            render = img.imread(file_render)
+            ax[0,i].imshow(render)
+            ax[0,i].set_axis_off()
+        else:
+            ax[0,i].set_xticks([])
+            ax[0,i].set_yticks([])
+            ax[0,i].text(0.14,0.5, "Structure modeled via Kelvin equation")
+        
+        ax[0,i].title.set_text(f'Structure {structure_render:02d} ({(solution[structure_render-1])/sum(solution)*100:.1f}%)')
+
+        
+        if structure_render <= structures_model:
+            file_render = f'simulated TEM/{structure_render:02d}.tif'
+            render = img.imread(file_render)
+            ax[1,i].imshow(render, cmap='gist_gray')
+
+            with open (f'structures/{structure_render:03d}.xyz') as fh:
+                next(fh)
+                lattice_size = float(next(fh).split(" ")[0])
+            bar_length_pixels = 20*render.shape[0]/lattice_size
+            pixels_sim_tem = render.shape[0]
+            ax[1,i].text(50,
+                        pixels_sim_tem*0.91,
+                        "2 nm",
+                        color='white',
+                        fontsize=15,
+                        fontweight='bold')
+            ax[1,i].plot([50, 50+bar_length_pixels],
+                        [pixels_sim_tem*0.95, pixels_sim_tem*0.95],
+                        '-',
+                        lw=5,
+                        color='white')
+            ax[1,i].set_axis_off()
+        else:
+            ax[1,i].set_xticks([])
+            ax[1,i].set_yticks([])
+            ax[1,i].text(0.42,0.5, "No image")
+    st.pyplot(fig)    
+
+
 
 
 
