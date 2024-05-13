@@ -192,6 +192,7 @@ st.write('Usually it is necessary to remove a few experimental points from the v
 #points_to_remove = 13 #for a20_lao
 points_to_remove = st.slider("Use the slider below to remove initial points from the isotherm:", 0, np.shape(exp_iso)[0], 0)
 
+st.write(f'Now the points from {points_to_remove} to {np.shape(exp_iso)[0]} will be used in the calculation')
 
 np_isotherm = np.array(df_isotherm)[points_to_remove:,1:]
 np_pressure_gcmc = np.array(df_isotherm)[points_to_remove:,0]
