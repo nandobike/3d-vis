@@ -595,11 +595,11 @@ st.pyplot(fig)
 cum_area = cumulative_trapezoid(PSD_solution*10/(df_PSD_pb[0]/10), x=df_PSD_pb[0]/10, initial=0)
 cum_area /= cum_area[-1]
 cum_area *= total_area
-#pore_range_area = np.array([2.05, 3.84]) #Enter pore range here
+#pore_range_area = np.array([1.4, 3.00]) #Enter pore range here
 
 pore_range_area_tuple = st.slider(
-    "Select a pore range to calculate specific surface area:",
-    np.min(df_PSD_pb[0]/10), np.max(df_PSD_pb[0]/10), (2.05, 3.84))
+    "Move the slider below to select pore range to calculate specific surface area within a custom pore range (nm):",
+    np.min(df_PSD_pb[0]/10), np.max(df_PSD_pb[0]/10), (1.40, 3.00))
 
 pore_range_area = np.array([float(pore_range_area_tuple[0]), float(pore_range_area_tuple[1])]) #Enter pore range here
 
@@ -607,18 +607,50 @@ ssa_pore_range_area = np.interp(pore_range_area, df_PSD_pb[0]/10, cum_area)
 area_between = ssa_pore_range_area[-1] - ssa_pore_range_area[0]
 
 fig, ax = plt.subplots()
-ax.plot(df_PSD_pb[0]/10, cum_area)
+
+#add horizontal lines
+ax.plot([0, pore_range_area[-1]], [ssa_pore_range_area[-1]]*2, linestyle='-', color='tab:orange')
+ax.plot([0, pore_range_area[0]], [ssa_pore_range_area[0]]*2, linestyle='-', color='tab:orange')
+
+#add vertical lines
+ax.plot([pore_range_area[0]]*2, [0, ssa_pore_range_area[0]], linestyle='--', color='tab:orange')
+ax.plot([pore_range_area[-1]]*2, [0, ssa_pore_range_area[-1]], linestyle='--', color='tab:orange')
+
+ax.plot(0, ssa_pore_range_area[-1], marker='<', color='tab:orange')
+ax.plot(0, ssa_pore_range_area[0], marker='<', color='tab:orange')
+
+
+#Add cummulative surface area plot
+ax.plot(df_PSD_pb[0]/10, cum_area, linewidth=3)
+
 ax.set_xlabel('Pore size (nm)')
 ax.set_ylabel(r'Surface area (m$^2$/g)')
 filter_area_plot = (df_PSD_pb[0]/10 > pore_range_area[0]) & (df_PSD_pb[0]/10 < pore_range_area[1])
 #print(filter_area_plot.sum())
-ax.fill_between((df_PSD_pb[0]/10)[filter_area_plot], cum_area[filter_area_plot], color='bisque')
-ax.text(pore_range_area.mean(),
-        ssa_pore_range_area[0]/2,
+
+#Fill small area without curve
+ax.fill_between([0, pore_range_area[0]], [ssa_pore_range_area[0]]*2, [ssa_pore_range_area[-1]]*2, color='oldlace')
+#Fill small area with curve
+#ax.fill_between([pore_range_area[0], pore_range_area[-1]], [ssa_pore_range_area[0]]*2, [ssa_pore_range_area[-1]]*2, color='bisque')
+ax.fill_between((df_PSD_pb[0]/10)[filter_area_plot], cum_area[filter_area_plot], ssa_pore_range_area[-1],  color='oldlace')
+
+#the classic:
+#ax.fill_between((df_PSD_pb[0]/10)[filter_area_plot], cum_area[filter_area_plot], color='bisque')
+
+
+ax.text(np.mean([0, pore_range_area[0]]),
+        ssa_pore_range_area.mean(),
         rf'{area_between:.1f} m$^2$/g',
         horizontalalignment='center',
         verticalalignment='center')
         #transform=ax.transAxes)
+#Below is old text
+#ax.text(pore_range_area.mean(),
+#        ssa_pore_range_area[0]/2,
+#        rf'{area_between:.1f} m$^2$/g',
+#        horizontalalignment='center',
+#        verticalalignment='center')
+#        #transform=ax.transAxes)
 st.pyplot(fig)        
 st.text(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m2/g')
 
