@@ -606,20 +606,18 @@ pore_range_area = np.array([float(pore_range_area_tuple[0]), float(pore_range_ar
 ssa_pore_range_area = np.interp(pore_range_area, df_PSD_pb[0]/10, cum_area)
 area_between = ssa_pore_range_area[-1] - ssa_pore_range_area[0]
 
-fig, ax = plt.subplots()
 
+
+fig, ax = plt.subplots()
 #add horizontal lines
 ax.plot([0, pore_range_area[-1]], [ssa_pore_range_area[-1]]*2, linestyle='-', color='tab:orange')
 ax.plot([0, pore_range_area[0]], [ssa_pore_range_area[0]]*2, linestyle='-', color='tab:orange')
-
 #add vertical lines
 ax.plot([pore_range_area[0]]*2, [0, ssa_pore_range_area[0]], linestyle='--', color='tab:orange')
 ax.plot([pore_range_area[-1]]*2, [0, ssa_pore_range_area[-1]], linestyle='--', color='tab:orange')
-
+#Add arrows
 ax.plot(0, ssa_pore_range_area[-1], marker='<', color='tab:orange')
 ax.plot(0, ssa_pore_range_area[0], marker='<', color='tab:orange')
-
-
 #Add cummulative surface area plot
 ax.plot(df_PSD_pb[0]/10, cum_area, linewidth=3)
 
@@ -663,14 +661,15 @@ psd_export = np.array([df_PSD_pb[0]/10,
                         PSD_solution*10,
                         PSD_solution_smooth*10,
                         cum_psd,
-                        cum_area]).T
+                        cum_area,
+                        PSD_solution_smooth*10/(df_PSD_pb[0]/10)]).T
 #header_psd_export = f"Pore size (nm)\tPSD\tSmoothed PSD\tCumulative PSD\tCumulative SSA"
-export_string = f"Pore size (nm)\tPSD\tSmoothed PSD\tCumulative PSD\tCumulative SSA\r\n"
+export_string = f"Pore size (nm)\tPSD\tSmoothed PSD\tCumulative PSD\tCumulative SSA\tSSA Smoothed\r\n"
 
 #print(psd_export.shape)
 
 for i in range(psd_export.shape[0]):
-    export_string += f"{psd_export[i,0]:.4f}\t{psd_export[i,1]:.7f}\t{psd_export[i,2]:.7f}\t{psd_export[i,3]:.7f}\t{psd_export[i,4]:.2f}\r\n"
+    export_string += f"{psd_export[i,0]:.4f}\t{psd_export[i,1]:.7f}\t{psd_export[i,2]:.7f}\t{psd_export[i,3]:.7f}\t{psd_export[i,4]:.2f}\t{psd_export[i,5]:.4f}\r\n"
 
 #np.savetxt(path.join("results", (base_exp_filename + "_export_PSD.tsv")),
 #            psd_export,
