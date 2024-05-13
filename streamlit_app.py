@@ -194,6 +194,11 @@ points_to_remove = st.slider("Use the slider below to remove initial points from
 
 st.write(f'Now the points from {points_to_remove} to {np.shape(exp_iso)[0]} will be used in the calculation')
 
+x_axis_scale = st.radio(
+    "Select x-axis scaling for the plot below",
+    ["Logarithmic", "Linear"])
+
+
 np_isotherm = np.array(df_isotherm)[points_to_remove:,1:]
 np_pressure_gcmc = np.array(df_isotherm)[points_to_remove:,0]
 
@@ -204,14 +209,16 @@ ax.plot(exp_iso[:,0], exp_iso[:,1],label='Experimental', marker='o', linestyle='
 ax.set_xlabel("Relative pressure P/P$_0$")
 ax.set_ylabel("Adsorbed amount (cm$^3$/g)")
 ax.set_ylim(bottom=0)  # adjust the bottom leaving top unchanged
-ax.set_xlim(left=1e-8, right=1.4)
 ax.plot(np_pressure_gcmc, exp_iso_interp,
          label='Experimental interpolated',
          marker='x',
          markersize=4,
          linestyle='none')
-ax.set_xscale('log')
-ax.xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
+if x_axis_scale == 'Logarithmic':
+    ax.set_xscale('log')
+    ax.xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
+    ax.set_xlim(left=1e-8, right=1.4)
+
 ax.set_title('Experimental Isotherm and Interpolation to Kernel')
 ax.legend()
 ax.grid(color='aliceblue')
