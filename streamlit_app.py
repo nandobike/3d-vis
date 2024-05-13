@@ -66,7 +66,7 @@ multi = '''This is the app that solves the microstructure of a porous carbon bas
 
 [Here is our paper published in Carbon](https://doi.org/10.1016/j.carbon.2023.118431)
 
-If you use the program please remember to cite us.
+If you use the program please remember [to cite us](https://raw.githubusercontent.com/nandobike/3d-vis/main/S0008622323006760.bib).
 
 Questions? Suggestions? Complaints? Shoot us an email: fvb@vallejos.cl
 '''
