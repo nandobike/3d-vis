@@ -309,7 +309,9 @@ st.text(f"Residual per point = {residual/np_pressure_gcmc.size:.3f} cc/g") #norm
 
 
 
-
+st.write('For the figures below, the plot on the left shows the contribution of figures of the kernel ' +
+        'and the right hand side shows the contribution plotted in the density-temperature space where the ' +
+        'kernel atomic structures were generated. The size of the marker is proportional to the contribution.')
 
 #plt.figure(figsize=(10, 6))
 fig, ax = plt.subplots(1,2, figsize=(11,4))
