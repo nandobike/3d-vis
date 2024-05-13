@@ -190,7 +190,7 @@ st.header('Data Cleaning and Validation')
 st.write('Usually it is necessary to remove a few experimental points from the very low pressures since they are very inaccurate. Look at the error in the fitted isotherm plot in the Results section to know how many to remove.')
 #Remove some initial experimental points where the experimental data is usually flawed
 #points_to_remove = 13 #for a20_lao
-points_to_remove = st.slider("Points to remove", 0, np.shape(exp_iso)[0], 0)
+points_to_remove = st.slider("Use the slider below to remove initial points from the isotherm:", 0, np.shape(exp_iso)[0], 0)
 
 
 np_isotherm = np.array(df_isotherm)[points_to_remove:,1:]
