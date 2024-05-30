@@ -83,7 +83,7 @@ st.image('summary.jpg', caption='Summary of the 3D-VIS method')
 
 
 #Structures available in the kernel
-structures = 89
+structures = 109
 #structures = 78 #This needs to be added if using models only
 
 #Structures that are calculated with atomistic model (not through Kelvin equation)
@@ -106,7 +106,7 @@ df_structures = pd.read_excel(excel_database,
 df_isotherm = pd.read_excel(excel_database,
                    #sheet_name='N2 77 K 1CLJ',
                    #sheet_name='Ar 87 K 1CLJ', #comment above and uncomment this to use Ar 87 K kernel
-                   sheet_name='N2 77 K 1CLJ_rc1',
+                   sheet_name='N2 77 K 1CLJ_2D-NLDFT',
                    header=None,
                    skiprows=8,
                    #nrows=64,
@@ -153,27 +153,27 @@ else:
     #1+1
     st.write(f'A file was uploaded: {file.name} as {file.type}')
 
-#print('-------------------')
-#print(file)
-#print(file.type)
+
 
 
 
 if isinstance(file, str):
     exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
-
-#elif (file.type == 'application/octet-stream'): #This is now not needed
-elif next(file) == b'====================\r\n': #If a Belsorp file is loaded
-    st.write('This file seems to be Belsorp format, will attempt load.')
-    contents = []
-    for line in file:
-        #print(line)
-        #contents.append(line.decode('shift-jis').rstrip()) #this works new version
-        contents.append(line.rstrip())
-    #print(contents) #DEBUG
-    exp_iso = read_branch(contents, 'adsorption')
-else: #Now the standard file
-    exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
+else:
+    
+    #read first line and remove whitespace
+    first_line = next(file).strip()
+    if first_line == b'====================': #If a Belsorp file is loaded
+        st.write('This file seems to be Belsorp format, will attempt load.')
+        contents = []
+        for line in file:
+            #print(line)
+            #contents.append(line.decode('shift-jis').rstrip()) #this works new version
+            contents.append(line.rstrip())
+        #print(contents) #DEBUG
+        exp_iso = read_branch(contents, 'adsorption')
+    else: #Now the standard file
+        exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
 
 
 
@@ -248,7 +248,15 @@ def calculate_isotherm(solution):
 
 
 # Plot experimental datapoints and show the fit
-log_scale_plot = True #use True if you want to plot using logarithmic scale in x
+x_axis_scale = st.radio(
+    "Select x-axis scaling for the plots below",
+    ["Logarithmic", "Linear"],
+    key='log fit')
+if x_axis_scale == "Logarithmic":
+    log_scale_plot = True #use True if you want to plot using logarithmic scale in x
+elif x_axis_scale == "Linear":
+    log_scale_plot = False #use True if you want to plot using logarithmic scale in x
+
 fig, ax = plt.subplots(2, gridspec_kw={'height_ratios': [1, 3]}, dpi=120) #, figsize=(3,3)
 
 # Top plot for error
@@ -306,6 +314,44 @@ st.pyplot(fig)
 st.text(f"Residual total= {residual:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
 st.text(f"Residual per point = {residual/np_pressure_gcmc.size:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
 
+debug = True
+if debug == True:
+    st.write('The plot below is usually for debugging purposes and show the contributions to the isotherm of the different structures.')
+    fig, ax = plt.subplots(figsize=(8,4))
+    ax.plot(np_pressure_gcmc, calculate_isotherm(solution),
+           label='Solution',
+           linestyle='solid',
+           color='black',
+           linewidth=3)
+    #ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_ylim(bottom=1)
+
+    top_n = 15
+    contribution_string = ""
+    for i in range(top_n):
+        struct = np.argsort(solution)[::-1][i]
+        if struct+1 > structures_model:
+            kelvin_deco = ' DFT'
+            linestyle = 'dashed'
+            alpha=0.7
+        else:
+            kelvin_deco = ''
+            linestyle = 'solid'
+            alpha=0.9
+        contribution_string = f"S #{struct+1} {kelvin_deco}"
+
+        ax.plot(np_pressure_gcmc, solution[struct] * np.array(np_isotherm[:,struct]),
+                linestyle=linestyle, label=contribution_string,
+                alpha=alpha)
+    ax.legend(prop={'size': 6})
+    ax.set_xlabel("Relative pressure P/P$_0$")
+    ax.set_ylabel("Adsorbed amount (cm$^3$/g)")
+    st.pyplot(fig)
+
+
+
+
 
 
 
@@ -334,7 +380,8 @@ st.pyplot(fig)
 
 st.divider()
 st.header('Contribution of Kernel')
-st.write('These are the top contributor structures of the kernel to fit the experimantal adsorption isotherm')
+st.write('These are the top contributor structures of the kernel to fit the experimental adsorption isotherm')
+st.markdown("DFT structures are calculated based on [*Jagiello and Oliver's* paper](https://doi.org/10.1016/j.carbon.2012.12.011)")
 # Print top contributions
 top_n = 15
 contribution_string = ""
@@ -342,7 +389,7 @@ for i in range(top_n):
 # Use this if all the range is desired: for i in range(structures):
     struct = np.argsort(solution)[::-1][i]
     if struct+1 > structures_model:
-        kelvin_deco = ' (Kelvin structure)'
+        kelvin_deco = ' (DFT structure)'
     else:
         kelvin_deco = ''
     contribution_string += f"Structure #{struct+1}:\t{solution[struct]*100:0.3f}% {kelvin_deco}\n"
@@ -375,7 +422,7 @@ for i in range(3):
     else:
         ax[0,i].set_xticks([])
         ax[0,i].set_yticks([])
-        ax[0,i].text(0.14,0.5, "Structure modeled via Kelvin equation")
+        ax[0,i].text(0.14,0.5, f"Structure modeled via DFT\nPore size = {df_structures['moment1'][structure_render]/10:.1f} nm")
     
     ax[0,i].title.set_text(f'Structure {structure_render:02d} ({(solution[structure_render-1])/sum(solution)*100:.1f}%)')
 
@@ -405,7 +452,7 @@ for i in range(3):
     else:
         ax[1,i].set_xticks([])
         ax[1,i].set_yticks([])
-        ax[1,i].text(0.42,0.5, "No image")
+        ax[1,i].text(0.40,0.5, "No image")
 st.pyplot(fig)     
 
 #Second figure
@@ -423,7 +470,7 @@ if show_more_structures:
         else:
             ax[0,i].set_xticks([])
             ax[0,i].set_yticks([])
-            ax[0,i].text(0.14,0.5, "Structure modeled via Kelvin equation")
+            ax[0,i].text(0.14,0.5, f"Structure modeled via DFT\nPore size = {df_structures['moment1'][structure_render]/10:.1f} nm")
         
         ax[0,i].title.set_text(f'Structure {structure_render:02d} ({(solution[structure_render-1])/sum(solution)*100:.1f}%)')
 
@@ -453,7 +500,7 @@ if show_more_structures:
         else:
             ax[1,i].set_xticks([])
             ax[1,i].set_yticks([])
-            ax[1,i].text(0.42,0.5, "No image")
+            ax[1,i].text(0.40,0.5, "No image")
     st.pyplot(fig)    
 
 
@@ -480,19 +527,19 @@ temp_exp = 1/temp_exp
 
 text_results_info = f"Sum of solution = {sum_solution:.3f}\n"
 text_results_info += f"Sum of solution only atomistic = {sum_solution_model:.3f}\n"
-text_results_info += f"Sum of solution only Kelvin = {sum_solution_kelvin:.3f}\n"
-text_results_info += f"Kelvin part = {sum_solution_kelvin/sum_solution*100:.2f}%\n"
-text_results_info += f"Density g/cc (excludes Kelvin) = " \
+text_results_info += f"Sum of solution only DFT = {sum_solution_kelvin:.3f}\n"
+text_results_info += f"DFT part = {sum_solution_kelvin/sum_solution*100:.2f}%\n"
+text_results_info += f"Density g/cc (excludes DFT) = " \
                      f"{sum((df_structures['System density, g/cm^3']*solution)[:structures_model]):.4f}\n"
-text_results_info += f"He volume cc/g (excludes Kelvin) = " \
+text_results_info += f"He volume cc/g (excludes DFT) = " \
       f"{sum((df_structures['Helium volume in cm^3/g']*solution)[:structures_model]):.4f}\n"
 text_results_info += f"Geometric (point accessible) volume in cm^3/g = " \
       f"{sum(df_structures['Geometric (point accessible) volume in cm^3/g']*solution):.4f}\n"
 #print(f"Probe-occupiable volume cc/g = {sum(df_structures['V PO cm3/g']*solution):.4f}")
 #print(f"Accessible area m2/g = {int(sum(df_structures[' Accessible surface area per mass in m^2/g']*solution)):d}")
 text_results_info += f"Total area m2/g = {int(total_area):d}\n"
-text_results_info += f"Simulation temperature K (excludes Kelvin) = {simulation_temperature:.0f}\n"
-text_results_info += f"Equivalent graphitization temperature K (excludes Kelvin) = {temp_exp:.0f}"
+text_results_info += f"Simulation temperature K (excludes DFT) = {simulation_temperature:.0f}\n"
+text_results_info += f"Equivalent graphitization temperature K (excludes DFT) = {temp_exp:.0f}"
 st.text(text_results_info)
 
 
@@ -522,17 +569,23 @@ PSD_solution_smooth = np.convolve(PSD_solution, smooth_kernel, mode='same')
 #First 3 points are not zero, but should not plot, we can use NaNs
 PSD_solution_smooth[0:3] = np.nan
 #Create a vector of the PSD sizes in Angstrom for Kelvin
-psd_kelvin_size = np.arange(df_PSD_pb[0].iloc[-1],500,1,dtype=float)
+#May need to increase the range if there are larger pores in the kernel
+psd_kelvin_size = np.arange(df_PSD_pb[0].iloc[-1],
+                            df_structures['moment1'].iloc[-1]+1, #this may need to increase
+                            1,
+                            dtype=float)
 
 #Create a vector of zeros to store what the PSD for Kelvin will be
 psd_kelvin = np.zeros_like(psd_kelvin_size)
 
+#print(df_structures['moment1'].iloc[-1])
 for index, value in df_structures['moment1'][structures_model:].items():
     #print(index, value)
     index_pore = np.searchsorted(psd_kelvin_size, value)
+    #print(index_pore)
     psd_kelvin[index_pore] = df_structures['Helium volume in cm^3/g'][index] * solution[index-1]
 
-smooth_kernel_size = 400 # Increase this for smoother results
+smooth_kernel_size = 40 # Increase this for smoother results, cannot be larger than kernel
 smooth_kernel = np.array(PascalTriangle(smooth_kernel_size))
 smooth_kernel = smooth_kernel / smooth_kernel.sum()
 PSD_kelvin_smooth = np.convolve(psd_kelvin, smooth_kernel, mode='same')
@@ -554,10 +607,14 @@ ax[1].plot(np.append(df_PSD_pb[0]/10, psd_kelvin_size[0]/10)[-2:],
            color="tab:blue",
            linewidth=2, linestyle=(0, (1, 1)) )
     
-#ax[1].plot(psd_kelvin_size/10, psd_kelvin)
+#ax[1].plot(psd_kelvin_size/10, psd_kelvin/100,linewidth=3, label='Kelvin', color='darkseagreen')
+
+#print(psd_kelvin_size/10)
+#print(PSD_kelvin_smooth*10)
+
 ax[1].plot(psd_kelvin_size/10,
-           PSD_kelvin_smooth*10,
-           linewidth=3, label='Kelvin', color='darkseagreen')
+           PSD_kelvin_smooth*10/50, #usually too big
+           linewidth=3, label='DFT', color='darkseagreen')
 ax[1].legend()
 ax[0].set_ylabel("Pore volume -dV(r)/dr")
 ax[0].set_xlim([0,6])
