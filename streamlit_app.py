@@ -314,8 +314,9 @@ st.pyplot(fig)
 st.text(f"Residual total= {residual:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
 st.text(f"Residual per point = {residual/np_pressure_gcmc.size:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
 
-debug = True
-if debug == True:
+debug = st.checkbox("Check this box to show contributions of structures to full isotherm. Usually for debugging purposes.")
+
+if debug:
     st.write('The plot below is usually for debugging purposes and show the contributions to the isotherm of the different structures.')
     fig, ax = plt.subplots(figsize=(8,4))
     ax.plot(np_pressure_gcmc, calculate_isotherm(solution),
