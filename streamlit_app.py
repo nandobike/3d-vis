@@ -387,7 +387,7 @@ if debug:
         ax.plot(np_pressure_gcmc, solution[struct] * np.array(np_isotherm[:,struct]),
                 linestyle=linestyle, label=contribution_string,
                 alpha=alpha)
-    ax.legend(prop={'size': 6})
+    ax.legend(prop={'size': 6}, loc='lower right')
     ax.set_xlabel("Relative pressure P/P$_0$")
     ax.set_ylabel("Adsorbed amount (cm$^3$/g)")
     st.pyplot(fig)
