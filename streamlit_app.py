@@ -119,6 +119,48 @@ df_isotherm = pd.read_excel(excel_database,
 df_isotherm[9] = 0
 df_isotherm[13] = 0
 
+
+if False:
+    df_isotherm[1] = 0
+    df_isotherm[2] = 0
+    df_isotherm[3] = 0
+    df_isotherm[4] = 0
+    df_isotherm[5] = 0
+    df_isotherm[6] = 0
+    df_isotherm[7] = 0
+    df_isotherm[8] = 0
+    df_isotherm[9] = 0
+    df_isotherm[10] = 0
+    df_isotherm[11] = 0
+    df_isotherm[12] = 0
+    df_isotherm[13] = 0
+    df_isotherm[14] = 0
+    df_isotherm[15] = 0
+    df_isotherm[16] = 0
+    df_isotherm[17] = 0
+    df_isotherm[18] = 0
+    df_isotherm[19] = 0
+    df_isotherm[20] = 0
+    df_isotherm[21] = 0
+    df_isotherm[22] = 0
+    df_isotherm[23] = 0
+    df_isotherm[24] = 0
+    df_isotherm[25] = 0
+    df_isotherm[42] = 0
+    df_isotherm[43] = 0
+    df_isotherm[44] = 0
+    df_isotherm[45] = 0
+    df_isotherm[52] = 0
+    df_isotherm[58] = 0
+    df_isotherm[65] = 0
+    df_isotherm[69] = 0
+    df_isotherm[70] = 0
+    df_isotherm[74] = 0
+    df_isotherm[75] = 0
+
+
+
+
 #Read pore size distributions and load into dataframe
 df_PSD_pb = pd.read_excel(excel_database,
                    sheet_name='Poreblazer PSDs_2', #_2 for ultranarrow pores ~1 A
