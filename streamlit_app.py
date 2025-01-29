@@ -77,102 +77,143 @@ st.image('summary.jpg', caption='Summary of the 3D-VIS method')
 
 
 
+st.divider()
+st.header('Kernel Selection')
+st.markdown('Select a kernel. The kernel is the set of the simulated adsorption isotherms. '
+            'It must match the experimental conditions of the measurement to be uploaded next.')
+
+kernel_radio = st.radio(
+    "Select Simulated Kernel",
+    ["N₂ at 77 K (default)", "CO₂ at 298.15 K"],
+    index=0
+)
 
 
+if kernel_radio == "N₂ at 77 K (default)":
+    #Structures available in the kernel
+    structures = 109
+
+    #Structures that are calculated with atomistic model (not through Kelvin equation)
+    structures_model = 78
+
+    #Excel filename with the kernel data
+    print('Load kernel')
+    excel_database = r'kernel.xlsx'
 
 
+    #Load structural parameters into a Pandas dataframe
+    df_structures = pd.read_excel(excel_database,
+                    sheet_name='Details',
+                    header=1,
+                    nrows=structures,
+                    index_col=1,
+                    engine='openpyxl')
 
-#Structures available in the kernel
-structures = 109
-#structures = 78 #This needs to be added if using models only
+    #Load calculated adsorption isotherms into a dataframe
+    df_isotherm = pd.read_excel(excel_database,
+                    #sheet_name='N2 77 K 1CLJ',
+                    #sheet_name='Ar 87 K 1CLJ', #comment above and uncomment this to use Ar 87 K kernel
+                    sheet_name='N2 77 K 1CLJ_2D-NLDFT',
+                    header=None,
+                    skiprows=8,
+                    #nrows=64,
+                    nrows=93,
+                    usecols=range(0,structures+1),
+                    engine='openpyxl')
 
-#Structures that are calculated with atomistic model (not through Kelvin equation)
-structures_model = 78
-
-#Excel filename with the kernel data
-print('Load kernel')
-excel_database = r'kernel.xlsx'
-
-
-#Load structural parameters into a Pandas dataframe
-df_structures = pd.read_excel(excel_database,
-                   sheet_name='Details',
-                   header=1,
-                   nrows=structures,
-                   index_col=1,
-                   engine='openpyxl')
-
-#Load calculated adsorption isotherms into a dataframe
-df_isotherm = pd.read_excel(excel_database,
-                   #sheet_name='N2 77 K 1CLJ',
-                   #sheet_name='Ar 87 K 1CLJ', #comment above and uncomment this to use Ar 87 K kernel
-                   sheet_name='N2 77 K 1CLJ_2D-NLDFT',
-                   header=None,
-                   skiprows=8,
-                   #nrows=64,
-                   nrows=93,
-                   usecols=range(0,structures+1),
-                   engine='openpyxl')
-
-#These are structures with low density that did not form a solid framework.
-#By making their isotherms equal to zero, they are removed from the regression
-df_isotherm[9] = 0
-df_isotherm[13] = 0
-
-
-if False:
-    df_isotherm[1] = 0
-    df_isotherm[2] = 0
-    df_isotherm[3] = 0
-    df_isotherm[4] = 0
-    df_isotherm[5] = 0
-    df_isotherm[6] = 0
-    df_isotherm[7] = 0
-    df_isotherm[8] = 0
+    #These are structures with low density that did not form a solid framework.
+    #By making their isotherms equal to zero, they are removed from the regression
     df_isotherm[9] = 0
-    df_isotherm[10] = 0
-    df_isotherm[11] = 0
-    df_isotherm[12] = 0
     df_isotherm[13] = 0
-    df_isotherm[14] = 0
-    df_isotherm[15] = 0
-    df_isotherm[16] = 0
-    df_isotherm[17] = 0
-    df_isotherm[18] = 0
-    df_isotherm[19] = 0
-    df_isotherm[20] = 0
-    df_isotherm[21] = 0
-    df_isotherm[22] = 0
-    df_isotherm[23] = 0
-    df_isotherm[24] = 0
-    df_isotherm[25] = 0
-    df_isotherm[42] = 0
-    df_isotherm[43] = 0
-    df_isotherm[44] = 0
-    df_isotherm[45] = 0
-    df_isotherm[52] = 0
-    df_isotherm[58] = 0
-    df_isotherm[65] = 0
-    df_isotherm[69] = 0
-    df_isotherm[70] = 0
-    df_isotherm[74] = 0
-    df_isotherm[75] = 0
 
 
+    if False:
+        df_isotherm[1] = 0
+        df_isotherm[2] = 0
+        df_isotherm[3] = 0
+        df_isotherm[4] = 0
+        df_isotherm[5] = 0
+        df_isotherm[6] = 0
+        df_isotherm[7] = 0
+        df_isotherm[8] = 0
+        df_isotherm[9] = 0
+        df_isotherm[10] = 0
+        df_isotherm[11] = 0
+        df_isotherm[12] = 0
+        df_isotherm[13] = 0
+        df_isotherm[14] = 0
+        df_isotherm[15] = 0
+        df_isotherm[16] = 0
+        df_isotherm[17] = 0
+        df_isotherm[18] = 0
+        df_isotherm[19] = 0
+        df_isotherm[20] = 0
+        df_isotherm[21] = 0
+        df_isotherm[22] = 0
+        df_isotherm[23] = 0
+        df_isotherm[24] = 0
+        df_isotherm[25] = 0
+        df_isotherm[42] = 0
+        df_isotherm[43] = 0
+        df_isotherm[44] = 0
+        df_isotherm[45] = 0
+        df_isotherm[52] = 0
+        df_isotherm[58] = 0
+        df_isotherm[65] = 0
+        df_isotherm[69] = 0
+        df_isotherm[70] = 0
+        df_isotherm[74] = 0
+        df_isotherm[75] = 0
+
+
+elif kernel_radio == "CO₂ at 298.15 K":
+    #Structures available in the kernel
+    structures = 78
+
+    #Structures that are calculated with atomistic model (not through Kelvin equation)
+    structures_model = 78
+
+    #Excel filename with the kernel data
+    print('Load kernel')
+    excel_database = r'kernel.xlsx'
+
+
+    #Load structural parameters into a Pandas dataframe
+    df_structures = pd.read_excel(excel_database,
+                    sheet_name='Details',
+                    header=1,
+                    nrows=structures,
+                    index_col=1,
+                    engine='openpyxl')
+
+    #Load calculated adsorption isotherms into a dataframe
+    df_isotherm = pd.read_excel(excel_database,
+                    sheet_name='CO2 298 K',
+                    header=None,
+                    skiprows=8,
+                    nrows=50,
+                    usecols=range(0,structures+1),
+                    engine='openpyxl')
+
+    #These are structures with low density that did not form a solid framework.
+    #By making their isotherms equal to zero, they are removed from the regression
+    df_isotherm[9] = 0
+    df_isotherm[13] = 0
 
 
 #Read pore size distributions and load into dataframe
 df_PSD_pb = pd.read_excel(excel_database,
-                   sheet_name='Poreblazer PSDs_2', #_2 for ultranarrow pores ~1 A
-                   header=None,
-                   skiprows=6,
-                   nrows=210,
-                   usecols=range(0,structures+1),
-                   engine='openpyxl')
+                sheet_name='Poreblazer PSDs_2', #_2 for ultranarrow pores ~1 A
+                header=None,
+                skiprows=6,
+                nrows=210,
+                usecols=range(0,structures+1),
+                engine='openpyxl')
 #Convert pore size distribution data to a numpy array
 np_PSD_pb = np.array(df_PSD_pb)[:,1:]
 
-
+#Create a boolean that means that there is DFT isotherms. Only True if structures_model not equals to structures
+dft_present = (structures != structures_model)
 
 
 st.divider()
@@ -424,7 +465,8 @@ st.pyplot(fig)
 st.divider()
 st.header('Contribution of Kernel')
 st.write('These are the top contributor structures of the kernel to fit the experimental adsorption isotherm')
-st.markdown("DFT structures are calculated based on [*Jagiello and Oliver's* paper](https://doi.org/10.1016/j.carbon.2012.12.011)")
+if dft_present:
+    st.markdown("DFT structures are calculated based on [*Jagiello and Oliver's* paper](https://doi.org/10.1016/j.carbon.2012.12.011)")
 # Print top contributions
 top_n = 15
 contribution_string = ""
@@ -631,7 +673,9 @@ for index, value in df_structures['moment1'][structures_model:].items():
 smooth_kernel_size = 40 # Increase this for smoother results, cannot be larger than kernel
 smooth_kernel = np.array(PascalTriangle(smooth_kernel_size))
 smooth_kernel = smooth_kernel / smooth_kernel.sum()
-PSD_kelvin_smooth = np.convolve(psd_kelvin, smooth_kernel, mode='same')
+
+if dft_present:
+    PSD_kelvin_smooth = np.convolve(psd_kelvin, smooth_kernel, mode='same')
 
 # Plot PSD
 fig, ax = plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(8,4))
@@ -645,19 +689,17 @@ for i in range(2):
                color="tab:blue")
     ax[i].set_xlabel("Pore size (nm)")
 
-ax[1].plot(np.append(df_PSD_pb[0]/10, psd_kelvin_size[0]/10)[-2:],
-           np.append(PSD_solution_smooth*10, 0)[-2:],
-           color="tab:blue",
-           linewidth=2, linestyle=(0, (1, 1)) )
-    
-#ax[1].plot(psd_kelvin_size/10, psd_kelvin/100,linewidth=3, label='Kelvin', color='darkseagreen')
+if dft_present:
+    ax[1].plot(np.append(df_PSD_pb[0]/10, psd_kelvin_size[0]/10)[-2:],
+            np.append(PSD_solution_smooth*10, 0)[-2:],
+            color="tab:blue",
+            linewidth=2, linestyle=(0, (1, 1)) )
 
-#print(psd_kelvin_size/10)
-#print(PSD_kelvin_smooth*10)
+if dft_present:    
+    ax[1].plot(psd_kelvin_size/10,
+            PSD_kelvin_smooth*10/50, #usually too big
+            linewidth=3, label='DFT', color='darkseagreen')
 
-ax[1].plot(psd_kelvin_size/10,
-           PSD_kelvin_smooth*10/50, #usually too big
-           linewidth=3, label='DFT', color='darkseagreen')
 ax[1].legend()
 ax[0].set_ylabel("Pore volume -dV(r)/dr")
 ax[0].set_xlim([0,6])
