@@ -487,12 +487,6 @@ st.write("These values are not normalized (and should not be). This means that a
 
 
 
-
-
-
-
-
-
 st.header('Microstructure Visualization')
 st.write('These are the top 3 structures that contribute to your isotherm, both atomic structure and simulated TEM image.')
 # Create a figure of a render and simulated TEM with the top contributors
@@ -612,17 +606,18 @@ temp_exp = 1/temp_exp
 
 text_results_info = f"Sum of solution = {sum_solution:.3f}\n"
 text_results_info += f"Sum of solution only atomistic = {sum_solution_model:.3f}\n"
-text_results_info += f"Sum of solution only DFT = {sum_solution_kelvin:.3f}\n"
-text_results_info += f"DFT part = {sum_solution_kelvin/sum_solution*100:.2f}%\n"
+if dft_present:
+    text_results_info += f"Sum of solution only DFT = {sum_solution_kelvin:.3f}\n"
+    text_results_info += f"DFT part = {sum_solution_kelvin/sum_solution*100:.2f}%\n"
 text_results_info += f"Density g/cc (excludes DFT) = " \
                      f"{sum((df_structures['System density, g/cm^3']*solution)[:structures_model]):.4f}\n"
 text_results_info += f"He volume cc/g (excludes DFT) = " \
       f"{sum((df_structures['Helium volume in cm^3/g']*solution)[:structures_model]):.4f}\n"
-text_results_info += f"Geometric (point accessible) volume in cm^3/g = " \
+text_results_info += f"Geometric (point accessible) volume in cm³/g = " \
       f"{sum(df_structures['Geometric (point accessible) volume in cm^3/g']*solution):.4f}\n"
 #print(f"Probe-occupiable volume cc/g = {sum(df_structures['V PO cm3/g']*solution):.4f}")
 #print(f"Accessible area m2/g = {int(sum(df_structures[' Accessible surface area per mass in m^2/g']*solution)):d}")
-text_results_info += f"Total area m2/g = {int(total_area):d}\n"
+text_results_info += f"Total area m²/g = {int(total_area):d}\n"
 text_results_info += f"Simulation temperature K (excludes DFT) = {simulation_temperature:.0f}\n"
 text_results_info += f"Equivalent graphitization temperature K (excludes DFT) = {temp_exp:.0f}"
 st.text(text_results_info)
@@ -792,7 +787,7 @@ ax.text(np.mean([0, pore_range_area[0]]),
 #        verticalalignment='center')
 #        #transform=ax.transAxes)
 st.pyplot(fig)        
-st.text(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m2/g')
+st.text(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m²/g')
 
 
 
