@@ -21,7 +21,11 @@ except:
 
 
 
-def find_range(contents): #Reads Belsorp
+def find_range(contents):
+    """
+    Takes the file content as input
+    Returns the line location of the adsorption branches
+    """
     string_find = b'"No."\t"Pe/kPa"\t"P0/kPa"\t"Vd/ml"\t"V/ml(STP) g-1"'
     string_find2 = b'"No."\t"Pe/kPa"\t"P0/kPa"\t"Vd/ml"\t"V/ml(STP)\x81Eg-1"'
     #print(contents[35] == b'"No."\t"Pe/kPa"\t"P0/kPa"\t"Vd/ml"\t"V/ml(STP)\x81Eg-1"')
@@ -31,8 +35,11 @@ def find_range(contents): #Reads Belsorp
     end_adsorption, end_desorption = [i for i,x in enumerate(contents) if x==string_find]    
     return (start_adsorption, end_adsorption, start_desorption, end_desorption)
 
-def read_branch(contents, branch): #Reads Belsorp
-    #Finds the start and end of branches
+def read_branch(contents, branch) -> "np.ndarray":
+    """
+    Reads Belsorp exported files
+    Returns the content of a certain adsorption or desorption branch.
+    """
     start_adsorption, end_adsorption, start_desorption, end_desorption = find_range(contents)
     if branch == 'adsorption':
         skip_header = start_adsorption+1
@@ -46,7 +53,7 @@ def read_branch(contents, branch): #Reads Belsorp
                              max_rows=max_rows,
                              encoding='shift-jis',
                              usecols=(1,2,4))
-    return np.column_stack((isotherm[:,0]/isotherm[:,1], isotherm[:,2]))
+    return np.column_stack((isotherm[:,0], isotherm[:,1], isotherm[:,2]))
 
 
 
@@ -238,12 +245,9 @@ else:
 
 
 
-
-
-if isinstance(file, str):
-    exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
-else:
-    
+if isinstance(file, str): #True if file is the example. False if it is an uploaded file.
+    exp_iso = np.genfromtxt(file, delimiter="\t") #Load example. Originally a20_lao.tsv
+else: #Read uploaded file
     #read first line and remove whitespace
     first_line = next(file).strip()
     if first_line == b'====================': #If a Belsorp file is loaded
@@ -253,8 +257,25 @@ else:
             #print(line)
             #contents.append(line.decode('shift-jis').rstrip()) #this works new version
             contents.append(line.rstrip())
-        #print(contents) #DEBUG
+        col1, col2 = st.columns(2)
+        with col1:
+            force_p0 = st.checkbox("Force P₀", value=False,
+                                   help="Saturation pressure will be forced to be a user-defined " \
+                                     "value instead of reading it from the file.")
+
+        with col2:
+            p0_forced_value = st.number_input("P₀ forced", value=100.0, min_value=0.0,
+                                        help="A value of 100 will convert kPa to bar as required by kernel.",
+                                        disabled=not(force_p0)
+                                        )
+            #st.write("P0 is", p0_forced_value)
+        
         exp_iso = read_branch(contents, 'adsorption')
+        if force_p0:
+            exp_iso = np.column_stack((exp_iso[:,0]/p0_forced_value, exp_iso[:,2]))
+        else:
+            exp_iso = np.column_stack((exp_iso[:,0]/exp_iso[:,1], exp_iso[:,2]))
+        #st.write(exp_iso) #Debug
     else: #Now the standard file
         exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
 
