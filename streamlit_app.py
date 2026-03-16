@@ -55,8 +55,24 @@ def read_branch(contents, branch) -> "np.ndarray":
 
 
 
+def calculate_isotherm(solution):
+    # This function sums the contributions of every kernel structure
+    # in order to calculate the predicted isotherm.
+    isotherm = np.zeros(np_pressure_gcmc.size) #create an empty vector
+    for i in range(structures):
+        isotherm = isotherm + solution[i] * np.array(np_isotherm[:,i])
+    return isotherm
 
 
+def PascalTriangle(n):
+    # This calculates a Pascal triangle that will be used for smoothing
+    # https://www.askpython.com/python/examples/pascals-triangle-using-python
+    # https://danielmuellerkomorowska.com/2020/06/02/smoothing-data-by-rolling-average-with-numpy/
+    trow = [1]
+    y = [0]
+    for x in range(n):
+        trow=[left+right for left,right in zip(trow+y, y+trow)]
+    return trow
 
 
 
@@ -295,13 +311,6 @@ st.write('Here the results of fitting the experimental isotherm with the kernel 
 #https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.nnls.html
 solution, residual = nnls(np_isotherm, exp_iso_interp)
 
-def calculate_isotherm(solution):
-    # This function sums the contributions of every kernel structure
-    # in order to calculate the predicted isotherm.
-    isotherm = np.zeros(np_pressure_gcmc.size) #create an empty vector
-    for i in range(structures):
-        isotherm = isotherm + solution[i] * np.array(np_isotherm[:,i])
-    return isotherm
 
 
 
@@ -598,15 +607,6 @@ st.text(text_results_info)
 st.divider()
 st.header('Pore Size Distribution (PSD)')
 
-def PascalTriangle(n):
-    # This calculates a Pascal triangle that will be used for smoothing
-    # https://www.askpython.com/python/examples/pascals-triangle-using-python
-    # https://danielmuellerkomorowska.com/2020/06/02/smoothing-data-by-rolling-average-with-numpy/
-    trow = [1]
-    y = [0]
-    for x in range(n):
-        trow=[left+right for left,right in zip(trow+y, y+trow)]
-    return trow
 
 
 # Calculate PSD
