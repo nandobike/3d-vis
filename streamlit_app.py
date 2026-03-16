@@ -338,7 +338,6 @@ ax[0].grid(color='aliceblue')
 
 if log_scale_plot:
     ax[0].set_xlim(left=1e-8, right=1.4)
-    
 else:
     ax[0].set_xlim(left=-0.02, right=1)
 
@@ -369,7 +368,6 @@ if log_scale_plot:
 else:
     ax[1].set_xlim(left=-0.02, right=1)
 
-plt.ylim(bottom=0)
 st.pyplot(fig)
 
 st.text(f"Residual total= {residual:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
