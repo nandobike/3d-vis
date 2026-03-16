@@ -128,19 +128,31 @@ def PascalTriangle(n):
 
 
 
-
-
 st.title('3D-VIS Isotherm Analysis')
 
-multi = '''This is the app that solves the microstructure of a porous carbon based on the paper:
+multi = '''This app predicts the 3D nanostructure of a porous carbon from an experimental gas adsorption isotherm,                    
+  by fitting it as a linear combination of pre-calculated atomistic kernel isotherms (Non-Negative Least Squares).                      
+  Results include the contributing structures, morphological statistics, and pore size distribution.
+                                                                                                                                        
+  **Supported measurements:** N₂ at 77 K and CO₂ at 298.15 K.
 
-*F. Vallejos-Burgos et al.* **3D nanostructure prediction of porous carbons via gas adsorption**, Carbon, Volume 215, 2023, 118431.
+  **Supported file formats:** tab-separated values (P/P₀ vs cm³/g) or Belsorp `.DAT` export files.
 
-[Here is our paper published in Carbon](https://doi.org/10.1016/j.carbon.2023.118431)
+  **Workflow:** Select kernel → Upload isotherm → Clean data → Analyze → Export PSD.
 
-If you use the program please remember [to cite us](https://raw.githubusercontent.com/nandobike/3d-vis/main/S0008622323006760.bib).
+  ---
 
-Questions? Suggestions? Complaints? Shoot us an email: fvb@vallejos.cl
+  Based on the paper:
+
+  *F. Vallejos-Burgos et al.* **3D nanostructure prediction of porous carbons via gas adsorption**, Carbon, Volume 215, 2023, 118431.
+
+  [Read the paper](https://doi.org/10.1016/j.carbon.2023.118431) · [Download
+  citation](https://raw.githubusercontent.com/nandobike/3d-vis/main/S0008622323006760.bib)
+
+  Questions? Suggestions? Complaints? Shoot us an email: fvb@vallejos.cl
+
+
+
 '''
 st.markdown(multi)
 
