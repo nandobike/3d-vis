@@ -558,11 +558,11 @@ if dft_present:
     text_results_info += f"Sum of solution only DFT = {sum_solution_kelvin:.3f}\n"
     text_results_info += f"DFT part = {sum_solution_kelvin/sum_solution*100:.2f}%\n"
 text_results_info += f"Density g/cc (excludes DFT) = " \
-                     f"{sum((df_structures['System density, g/cm^3']*solution)[:structures_model]):.4f}\n"
+                     f"{np.sum((df_structures['System density, g/cm^3']*solution)[:structures_model]):.4f}\n"
 text_results_info += f"He volume cc/g (excludes DFT) = " \
-      f"{sum((df_structures['Helium volume in cm^3/g']*solution)[:structures_model]):.4f}\n"
+      f"{np.sum((df_structures['Helium volume in cm^3/g']*solution)[:structures_model]):.4f}\n"
 text_results_info += f"Geometric (point accessible) volume in cm³/g = " \
-      f"{sum(df_structures['Geometric (point accessible) volume in cm^3/g']*solution):.4f}\n"
+      f"{np.sum(df_structures['Geometric (point accessible) volume in cm^3/g']*solution):.4f}\n"
 #print(f"Probe-occupiable volume cc/g = {sum(df_structures['V PO cm3/g']*solution):.4f}")
 #print(f"Accessible area m2/g = {int(sum(df_structures[' Accessible surface area per mass in m^2/g']*solution)):d}")
 text_results_info += f"Total area m²/g = {int(total_area):d}\n"
