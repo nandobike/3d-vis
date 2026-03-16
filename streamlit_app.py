@@ -253,11 +253,6 @@ else: #Read uploaded file
         exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
 
 
-
-base_exp_filename = 'Isotherm_data'
-
-
-
 st.divider()
 st.header('Data Cleaning and Validation')
 st.write('Usually it is necessary to remove a few experimental points from the very low pressures since they are very inaccurate. Look at the error in the fitted isotherm plot in the Results section to know how many to remove.')
