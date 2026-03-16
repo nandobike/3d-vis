@@ -51,7 +51,8 @@ def read_branch(contents, branch) -> "np.ndarray":
                              max_rows=max_rows,
                              encoding='shift-jis',
                              usecols=(1,2,4))
-    return np.column_stack((isotherm[:,0], isotherm[:,1], isotherm[:,2]))
+    #return np.column_stack((isotherm[:,0], isotherm[:,1], isotherm[:,2]))
+    return isotherm
 
 
 
