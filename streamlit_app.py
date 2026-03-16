@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as img
 import matplotlib.ticker as ticker
-
 import pandas as pd
 from scipy.optimize import nnls
 
@@ -14,9 +13,10 @@ except ImportError:
       st.warning("Old SciPy detected: cumulative PSD unavailable.")
 
 
-
-
-
+#Constants
+ANNEALING_TIME_S = 2e-9 #2 nanoseconds in seconds
+KB_EV_PER_K = 8.617e-5 #eV/K Boltzmann constant
+ACTIVATION_ENERGY_EV = 6.0 #eV
 
 
 def find_range(contents):
@@ -104,8 +104,6 @@ def plot_top_structures(solution, offset=0):
     st.pyplot(fig)
 
 
-
-
 def calculate_isotherm(solution):
     # This function sums the contributions of every kernel structure
     # in order to calculate the predicted isotherm.
@@ -124,6 +122,7 @@ def PascalTriangle(n):
     for x in range(n):
         trow=[left+right for left,right in zip(trow+y, y+trow)]
     return trow
+
 
 
 
@@ -546,9 +545,6 @@ sum_solution_kelvin = np.sum(solution[structures_model:])
 total_area = np.sum(df_structures['Total surface area m^2/g']*solution)
 simulation_temperature = np.sum((df_structures['T(K)']*solution)[:structures_model])/sum_solution_model
 
-ANNEALING_TIME_S = 2e-9 #2 nanoseconds in seconds
-KB_EV_PER_K = 8.617e-5 #eV/K Boltzmann constant
-ACTIVATION_ENERGY_EV = 6.0 #eV
 temp_exp = 1/simulation_temperature - KB_EV_PER_K / ACTIVATION_ENERGY_EV * np.log(ANNEALING_TIME_S/3600)
 temp_exp = 1/temp_exp
 
