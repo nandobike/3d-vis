@@ -321,10 +321,7 @@ x_axis_scale = st.radio(
     "Select x-axis scaling for the plots below",
     ["Logarithmic", "Linear"],
     key='log fit')
-if x_axis_scale == "Logarithmic":
-    log_scale_plot = True #use True if you want to plot using logarithmic scale in x
-elif x_axis_scale == "Linear":
-    log_scale_plot = False #use True if you want to plot using logarithmic scale in x
+log_scale_plot = (x_axis_scale == "Logarithmic") #use True if you want to plot using logarithmic scale in x
 
 fig, ax = plt.subplots(2, gridspec_kw={'height_ratios': [1, 3]}, dpi=120) #, figsize=(3,3)
 
