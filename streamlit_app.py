@@ -578,10 +578,10 @@ sum_solution_kelvin = sum(solution[structures_model:])
 total_area = sum(df_structures['Total surface area m^2/g']*solution)
 simulation_temperature = sum((df_structures['T(K)']*solution)[:structures_model])/sum_solution_model
 
-time_sim = 2e-9 #2 nanoseconds in seconds
-kB = 8.617e-5 #eV/K Boltzmann constant
-activ_energy = 6 #eV
-temp_exp = 1/simulation_temperature - kB / activ_energy * np.log(time_sim/3600)
+ANNEALING_TIME_S = 2e-9 #2 nanoseconds in seconds
+KB_EV_PER_K = 8.617e-5 #eV/K Boltzmann constant
+ACTIVATION_ENERGY_EV = 6.0 #eV
+temp_exp = 1/simulation_temperature - KB_EV_PER_K / ACTIVATION_ENERGY_EV * np.log(ANNEALING_TIME_S/3600)
 temp_exp = 1/temp_exp
 
 text_results_info = f"Sum of solution = {sum_solution:.3f}\n"
