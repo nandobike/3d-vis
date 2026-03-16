@@ -56,52 +56,52 @@ def read_branch(contents, branch) -> "np.ndarray":
 
 
 def plot_top_structures(solution, offset=0):
-      """                                                                                                                               
-      Plot a 2x3 grid of the top 3 contributing kernel structures, ranked by solution weight.
-                                                                                                                                        
-      Each column shows one structure: the top render (PNG) in row 0 and the simulated TEM                                              
-      image (TIF) with a 2 nm scale bar in row 1. DFT-only structures (index > structures_model)                                        
-      display a text placeholder instead of images.
+    """                                                                                                                               
+    Plot a 2x3 grid of the top 3 contributing kernel structures, ranked by solution weight.
+                                                                                                                                    
+    Each column shows one structure: the top render (PNG) in row 0 and the simulated TEM                                              
+    image (TIF) with a 2 nm scale bar in row 1. DFT-only structures (index > structures_model)                                        
+    display a text placeholder instead of images.
 
-      Parameters
-      ----------
-      solution : np.ndarray
-          NNLS solution vector of length `structures`, one weight per kernel structure.
-      offset : int, optional
-          Skip the top `offset` contributors before selecting 3 to display.
-          0 (default) shows ranks 1-3; 3 shows ranks 4-6.
-      """
+    Parameters
+    ----------
+    solution : np.ndarray
+        NNLS solution vector of length `structures`, one weight per kernel structure.
+    offset : int, optional
+        Skip the top `offset` contributors before selecting 3 to display.
+        0 (default) shows ranks 1-3; 3 shows ranks 4-6.
+    """
 
-      fig, ax = plt.subplots(2, 3, figsize=(12, 7))
-      for i in range(3):
-          structure_render = np.argsort(solution)[-1 - i - offset] + 1
-          if structure_render <= structures_model:
-              render = img.imread(f'rendered structures/{structure_render:03d}.png')
-              ax[0,i].imshow(render)
-              ax[0,i].set_axis_off()
-          else:
-              ax[0,i].set_xticks([])
-              ax[0,i].set_yticks([])
-              ax[0,i].text(0.14, 0.5, f"Structure modeled via DFT\nPore size = {df_structures['moment1'][structure_render]/10:.1f} nm")
+    fig, ax = plt.subplots(2, 3, figsize=(12, 7))
+    for i in range(3):
+        structure_render = np.argsort(solution)[-1 - i - offset] + 1
+        if structure_render <= structures_model:
+            render = img.imread(f'rendered structures/{structure_render:03d}.png')
+            ax[0,i].imshow(render)
+            ax[0,i].set_axis_off()
+        else:
+            ax[0,i].set_xticks([])
+            ax[0,i].set_yticks([])
+            ax[0,i].text(0.14, 0.5, f"Structure modeled via DFT\nPore size = {df_structures['moment1'][structure_render]/10:.1f} nm")
 
-          ax[0,i].title.set_text(f'Structure {structure_render:02d} ({solution[structure_render-1]/sum(solution)*100:.1f}%)')
+        ax[0,i].title.set_text(f'Structure {structure_render:02d} ({solution[structure_render-1]/sum(solution)*100:.1f}%)')
 
-          if structure_render <= structures_model:
-              render = img.imread(f'simulated TEM/{structure_render:02d}.tif')
-              ax[1,i].imshow(render, cmap='gist_gray')
-              with open(f'structures/{structure_render:03d}.xyz') as fh:
-                  next(fh)
-                  lattice_size = float(next(fh).split(" ")[0])
-              bar_length_pixels = 20 * render.shape[0] / lattice_size
-              pixels_sim_tem = render.shape[0]
-              ax[1,i].text(50, pixels_sim_tem*0.91, "2 nm", color='white', fontsize=15, fontweight='bold')
-              ax[1,i].plot([50, 50+bar_length_pixels], [pixels_sim_tem*0.95, pixels_sim_tem*0.95], '-', lw=5, color='white')
-              ax[1,i].set_axis_off()
-          else:
-              ax[1,i].set_xticks([])
-              ax[1,i].set_yticks([])
-              ax[1,i].text(0.38, 0.5, "No image")
-      st.pyplot(fig)
+        if structure_render <= structures_model:
+            render = img.imread(f'simulated TEM/{structure_render:02d}.tif')
+            ax[1,i].imshow(render, cmap='gist_gray')
+            with open(f'structures/{structure_render:03d}.xyz') as fh:
+                next(fh)
+                lattice_size = float(next(fh).split(" ")[0])
+            bar_length_pixels = 20 * render.shape[0] / lattice_size
+            pixels_sim_tem = render.shape[0]
+            ax[1,i].text(50, pixels_sim_tem*0.91, "2 nm", color='white', fontsize=15, fontweight='bold')
+            ax[1,i].plot([50, 50+bar_length_pixels], [pixels_sim_tem*0.95, pixels_sim_tem*0.95], '-', lw=5, color='white')
+            ax[1,i].set_axis_off()
+        else:
+            ax[1,i].set_xticks([])
+            ax[1,i].set_yticks([])
+            ax[1,i].text(0.38, 0.5, "No image")
+    st.pyplot(fig)
 
 
 
