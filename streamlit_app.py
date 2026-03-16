@@ -1,6 +1,4 @@
 import streamlit as st
-
-# Import all necessary libraries
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as img
@@ -8,7 +6,6 @@ import matplotlib.ticker as ticker
 
 import pandas as pd
 from scipy.optimize import nnls
-#from os import path
 
 #some old versions of scipy do not have the cumulative trapezoid function
 try:
@@ -104,7 +101,7 @@ if kernel_radio == "N₂ at 77 K (default)":
     structures_model = 78
 
     #Excel filename with the kernel data
-    print('Load kernel')
+    #Load Kernel
     excel_database = r'kernel.xlsx'
 
 
@@ -134,44 +131,6 @@ if kernel_radio == "N₂ at 77 K (default)":
     df_isotherm[13] = 0
 
 
-    if False:
-        df_isotherm[1] = 0
-        df_isotherm[2] = 0
-        df_isotherm[3] = 0
-        df_isotherm[4] = 0
-        df_isotherm[5] = 0
-        df_isotherm[6] = 0
-        df_isotherm[7] = 0
-        df_isotherm[8] = 0
-        df_isotherm[9] = 0
-        df_isotherm[10] = 0
-        df_isotherm[11] = 0
-        df_isotherm[12] = 0
-        df_isotherm[13] = 0
-        df_isotherm[14] = 0
-        df_isotherm[15] = 0
-        df_isotherm[16] = 0
-        df_isotherm[17] = 0
-        df_isotherm[18] = 0
-        df_isotherm[19] = 0
-        df_isotherm[20] = 0
-        df_isotherm[21] = 0
-        df_isotherm[22] = 0
-        df_isotherm[23] = 0
-        df_isotherm[24] = 0
-        df_isotherm[25] = 0
-        df_isotherm[42] = 0
-        df_isotherm[43] = 0
-        df_isotherm[44] = 0
-        df_isotherm[45] = 0
-        df_isotherm[52] = 0
-        df_isotherm[58] = 0
-        df_isotherm[65] = 0
-        df_isotherm[69] = 0
-        df_isotherm[70] = 0
-        df_isotherm[74] = 0
-        df_isotherm[75] = 0
-
 
 elif kernel_radio == "CO₂ at 298.15 K":
     #Structures available in the kernel
@@ -181,7 +140,7 @@ elif kernel_radio == "CO₂ at 298.15 K":
     structures_model = 78
 
     #Excel filename with the kernel data
-    print('Load kernel')
+    #Load Kernel
     excel_database = r'kernel.xlsx'
 
 
@@ -226,21 +185,17 @@ dft_present = (structures != structures_model)
 st.divider()
 st.header('Isotherm Data Load')
 st.markdown('Upload your isotherm as a text file. The file must only contain datapoints in ascending pressure order. Two columns separated by tabs, first for relative pressure, second for adsorbed amount in cc STP/g. See an example [here](https://raw.githubusercontent.com/nandobike/3d-vis/main/examples/a20_lao.tsv)')
+
 #load experimental isotherm
 #It must be a tab-separated file with two columns.
 #First column is relative pressure and second column adsorbed volume in units cc STP/g
 file = st.file_uploader("Upload isotherm file")
+
 if file is None:
     file = "examples/a20_lao.tsv"
     st.write(f"No file was uploaded. Loading a default isotherm file: {file}")
-    #file_parameters = read_parameters(file)
-    #file_name_print = file
+
 else:
-    #for line in filename:
-    #    st.write(line.decode('cp1252').rstrip())
-    #file_parameters = read_parameters_uploaded(file)
-    #file_name_print = file.name
-    #1+1
     st.write(f'A file was uploaded: {file.name} as {file.type}')
 
 
@@ -281,11 +236,7 @@ else: #Read uploaded file
 
 
 
-
-
-
-
-base_exp_filename = 'Isotherm_data' #path.splitext(experimental_isotherm_file)[0]
+base_exp_filename = 'Isotherm_data'
 
 
 
@@ -294,7 +245,10 @@ st.header('Data Cleaning and Validation')
 st.write('Usually it is necessary to remove a few experimental points from the very low pressures since they are very inaccurate. Look at the error in the fitted isotherm plot in the Results section to know how many to remove.')
 #Remove some initial experimental points where the experimental data is usually flawed
 #points_to_remove = 13 #for a20_lao
-points_to_remove = st.slider("Use the slider below to remove initial points from the isotherm:", 0, np.shape(exp_iso)[0], 0)
+points_to_remove = st.slider("Use the slider below to remove initial points from the isotherm:",
+                             0,
+                             np.shape(exp_iso)[0],
+                             0)
 
 st.write(f'Now the points from {points_to_remove} to {np.shape(exp_iso)[0]} will be used in the calculation')
 
@@ -373,7 +327,7 @@ if log_scale_plot:
 ax[0].set_ylabel("Error (cm$^3$/g)")
 ax[0].grid(color='aliceblue')
 
-#ax[0].set_ylabel("Error")
+
 if log_scale_plot:
     ax[0].set_xlim(left=1e-8, right=1.4)
     
@@ -381,7 +335,6 @@ else:
     ax[0].set_xlim(left=-0.02, right=1)
 
 ax[0].axes.get_xaxis().set_ticks([])
-#ax[0].axes.get_yaxis().set_ticks([])
 
 # Bottom plot of isotherm and fitted isotherm
 ax[1].plot(exp_iso[:,0], exp_iso[:,1],
@@ -398,9 +351,7 @@ if log_scale_plot:
     ax[1].xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
 
 ax[1].set_xlabel("Relative pressure P/P$_0$")
-#ax[1].set_xlabel("P/P$_0$")
 ax[1].set_ylabel("Adsorbed amount (cm$^3$/g)")
-#ax[1].set_ylabel("Adsorption")
 ax[1].legend()
 ax[1].grid(color='aliceblue')
 
@@ -409,9 +360,7 @@ if log_scale_plot:
     ax[1].set_xlim(left=1e-8, right=1.4)
 else:
     ax[1].set_xlim(left=-0.02, right=1)
-#if log_scale_plot:
-#    ax[1].set_xlim(left=1e-7, right=1.4)
-#ax[1].axes.get_yaxis().set_ticks([])
+
 plt.ylim(bottom=0)
 st.pyplot(fig)
 
@@ -620,7 +569,7 @@ total_area = sum(df_structures['Total surface area m^2/g']*solution)
 simulation_temperature = sum((df_structures['T(K)']*solution)[:structures_model])/sum_solution_model
 
 time_sim = 2e-9 #2 nanoseconds in seconds
-kB = 8.617e-5 #eV/K
+kB = 8.617e-5 #eV/K Boltzmann constant
 activ_energy = 6 #eV
 temp_exp = 1/simulation_temperature - kB / activ_energy * np.log(time_sim/3600)
 temp_exp = 1/temp_exp
@@ -679,11 +628,9 @@ psd_kelvin_size = np.arange(df_PSD_pb[0].iloc[-1],
 #Create a vector of zeros to store what the PSD for Kelvin will be
 psd_kelvin = np.zeros_like(psd_kelvin_size)
 
-#print(df_structures['moment1'].iloc[-1])
+
 for index, value in df_structures['moment1'][structures_model:].items():
-    #print(index, value)
     index_pore = np.searchsorted(psd_kelvin_size, value)
-    #print(index_pore)
     psd_kelvin[index_pore] = df_structures['Helium volume in cm^3/g'][index] * solution[index-1]
 
 smooth_kernel_size = 40 # Increase this for smoother results, cannot be larger than kernel
@@ -753,7 +700,6 @@ st.pyplot(fig)
 cum_area = cumulative_trapezoid(PSD_solution*10/(df_PSD_pb[0]/10), x=df_PSD_pb[0]/10, initial=0)
 cum_area /= cum_area[-1]
 cum_area *= total_area
-#pore_range_area = np.array([1.4, 3.00]) #Enter pore range here
 
 pore_range_area_tuple = st.slider(
     "Move the slider below to select pore range to calculate specific surface area within a custom pore range (nm):",
@@ -787,11 +733,9 @@ filter_area_plot = (df_PSD_pb[0]/10 > pore_range_area[0]) & (df_PSD_pb[0]/10 < p
 #Fill small area without curve
 ax.fill_between([0, pore_range_area[0]], [ssa_pore_range_area[0]]*2, [ssa_pore_range_area[-1]]*2, color='oldlace')
 #Fill small area with curve
-#ax.fill_between([pore_range_area[0], pore_range_area[-1]], [ssa_pore_range_area[0]]*2, [ssa_pore_range_area[-1]]*2, color='bisque')
 ax.fill_between((df_PSD_pb[0]/10)[filter_area_plot], cum_area[filter_area_plot], ssa_pore_range_area[-1],  color='oldlace')
 
 #the classic:
-#ax.fill_between((df_PSD_pb[0]/10)[filter_area_plot], cum_area[filter_area_plot], color='bisque')
 
 
 ax.text(np.mean([0, pore_range_area[0]]),
@@ -799,14 +743,8 @@ ax.text(np.mean([0, pore_range_area[0]]),
         rf'{area_between:.1f} m$^2$/g',
         horizontalalignment='center',
         verticalalignment='center')
-        #transform=ax.transAxes)
-#Below is old text
-#ax.text(pore_range_area.mean(),
-#        ssa_pore_range_area[0]/2,
-#        rf'{area_between:.1f} m$^2$/g',
-#        horizontalalignment='center',
-#        verticalalignment='center')
-#        #transform=ax.transAxes)
+
+
 st.pyplot(fig)        
 st.text(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m²/g')
 
@@ -824,16 +762,9 @@ psd_export = np.array([df_PSD_pb[0]/10,
 #header_psd_export = f"Pore size (nm)\tPSD\tSmoothed PSD\tCumulative PSD\tCumulative SSA"
 export_string = f"Pore size (nm)\tPSD\tSmoothed PSD\tCumulative PSD\tCumulative SSA\tSSA Smoothed\r\n"
 
-#print(psd_export.shape)
 
 for i in range(psd_export.shape[0]):
     export_string += f"{psd_export[i,0]:.4f}\t{psd_export[i,1]:.7f}\t{psd_export[i,2]:.7f}\t{psd_export[i,3]:.7f}\t{psd_export[i,4]:.2f}\t{psd_export[i,5]:.4f}\r\n"
-
-#np.savetxt(path.join("results", (base_exp_filename + "_export_PSD.tsv")),
-#            psd_export,
-#            delimiter='\t',
-#            header=header_psd_export,
-#            comments="")
 
 st.download_button(
     label="Download PSD data as tab-separated values",
