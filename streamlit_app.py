@@ -10,8 +10,9 @@ from scipy.optimize import nnls
 #some old versions of scipy do not have the cumulative trapezoid function
 try:
     from scipy.integrate import cumulative_trapezoid
-except:
-    print("Old Scipy, cumulative PSD will throw error later")
+except ImportError:
+      st.warning("Old SciPy detected: cumulative PSD unavailable.")
+
 
 
 
