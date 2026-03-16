@@ -562,12 +562,12 @@ st.header('Morphological Information')
 st.write('Below are textural statistics predicted using 3D-VIS for the isotherm provided.')
 
 #Some structures need to be not considered since are not atomistic but Kelvin
-sum_solution = sum(solution)
-sum_solution_model = sum(solution[:structures_model])
-sum_solution_kelvin = sum(solution[structures_model:])
+sum_solution = np.sum(solution)
+sum_solution_model = np.sum(solution[:structures_model])
+sum_solution_kelvin = np.sum(solution[structures_model:])
 
-total_area = sum(df_structures['Total surface area m^2/g']*solution)
-simulation_temperature = sum((df_structures['T(K)']*solution)[:structures_model])/sum_solution_model
+total_area = np.sum(df_structures['Total surface area m^2/g']*solution)
+simulation_temperature = np.sum((df_structures['T(K)']*solution)[:structures_model])/sum_solution_model
 
 ANNEALING_TIME_S = 2e-9 #2 nanoseconds in seconds
 KB_EV_PER_K = 8.617e-5 #eV/K Boltzmann constant
