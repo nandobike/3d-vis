@@ -578,8 +578,8 @@ st.header('Pore Size Distribution (PSD)')
 
 
 # Calculate PSD
-PSD_weighted = np_PSD_pb
-PSD_solution = (np.array(df_structures['Helium volume in cm^3/g']) * solution * PSD_weighted).sum(axis=1)
+PSD_solution = (np.array(df_structures['Helium volume in cm^3/g']) * solution * np_PSD_pb).sum(axis=1)
+
 #Smooth the PSD
 smooth_kernel_size = 10 # Increase this for smoother results, 70 is for paper
 smooth_kernel = np.array(PascalTriangle(smooth_kernel_size))
