@@ -50,3 +50,6 @@ Thumbs.db
 
 # virtual environment
 venv
+
+# CLAUDE
+CLAUDE.md
