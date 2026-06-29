@@ -18,6 +18,31 @@ ANNEALING_TIME_S = 2e-9 #2 nanoseconds in seconds
 KB_EV_PER_K = 8.617e-5 #eV/K Boltzmann constant
 ACTIVATION_ENERGY_EV = 6.0 #eV
 
+#Excel file holding every kernel (isotherms, structural details, PSDs)
+EXCEL_DATABASE = r'kernel.xlsx'
+
+#Kernel definitions. Each entry describes one simulated adsorption kernel in EXCEL_DATABASE.
+# - isotherm_sheet / isotherm_rows: where to read the isotherm matrix and how many pressure points.
+# - structures: total number of structure columns in the kernel.
+# - structures_model: how many of those are atomistic. The remaining (structures - structures_model)
+#   are DFT/Kelvin structures appended at the end. They have no .xyz/render/TEM assets and no
+#   counterpart in DFT-free kernels (e.g. CO2), so they cannot be transferred during conversion.
+#The first structures_model atomistic structures share the same indices across all kernels.
+KERNELS = {
+    "N₂ at 77 K": {
+        "isotherm_sheet": "N2 77 K 1CLJ_2D-NLDFT",
+        "isotherm_rows": 93,
+        "structures": 109,
+        "structures_model": 78,
+    },
+    "CO₂ at 298.15 K": {
+        "isotherm_sheet": "CO2 298 K",
+        "isotherm_rows": 50,
+        "structures": 78,
+        "structures_model": 78,
+    },
+}
+
 
 def find_range(contents):
     """
@@ -124,6 +149,49 @@ def PascalTriangle(n):
     return trow
 
 
+def load_kernel(config, n_structures):
+    """
+    Load a kernel's structural parameters and isotherm matrix from EXCEL_DATABASE.
+
+    Parameters
+    ----------
+    config : dict
+        One KERNELS entry (isotherm sheet name, row count, structure counts).
+    n_structures : int
+        Number of structure columns to load. Pass structures_model to drop the trailing
+        DFT structures, yielding a DFT-free kernel whose fit can be converted to any
+        other kernel without losing weight.
+
+    Returns
+    -------
+    df_structures : pandas.DataFrame
+        Per-structure parameters, one row per structure (n_structures rows).
+    df_isotherm : pandas.DataFrame
+        Column 0 is the pressure grid; columns 1..n_structures are the kernel isotherms.
+    """
+    df_structures = pd.read_excel(EXCEL_DATABASE,
+                    sheet_name='Details',
+                    header=1,
+                    nrows=n_structures,
+                    index_col=1,
+                    engine='openpyxl')
+
+    df_isotherm = pd.read_excel(EXCEL_DATABASE,
+                    sheet_name=config['isotherm_sheet'],
+                    header=None,
+                    skiprows=8,
+                    nrows=config['isotherm_rows'],
+                    usecols=range(0, n_structures + 1),
+                    engine='openpyxl')
+
+    #Structures 9 and 13 had low density and never formed a solid framework.
+    #Zeroing their isotherms removes them from the regression.
+    df_isotherm[9] = 0
+    df_isotherm[13] = 0
+
+    return df_structures, df_isotherm
+
+
 
 
 
@@ -167,87 +235,36 @@ st.markdown('Select a kernel. The kernel is the set of the simulated adsorption 
 
 kernel_radio = st.radio(
     "Select Simulated Kernel",
-    ["N₂ at 77 K (default)", "CO₂ at 298.15 K"],
+    list(KERNELS.keys()),
     index=0
 )
+kernel_config = KERNELS[kernel_radio]
 
+#DFT structures can't be transferred to DFT-free kernels (e.g. CO2). Let the user exclude
+#them so the fit uses only the atomistic structures shared by every kernel, which makes the
+#Adsorbate Conversion below lossless.
+has_dft = kernel_config['structures'] != kernel_config['structures_model']
+include_dft = st.checkbox(
+    "Include DFT structures in the fit",
+    value=True,
+    disabled=not has_dft,
+    help="DFT (Kelvin) structures model larger pores but have no counterpart in DFT-free "
+         "kernels such as CO₂. Uncheck for a fit that can be converted to any adsorbate "
+         "without losing weight. Disabled when the selected kernel has no DFT structures."
+)
 
-if kernel_radio == "N₂ at 77 K (default)":
-    #Structures available in the kernel
-    structures = 109
+#Structures available in the kernel (atomistic only when DFT is excluded)
+structures = kernel_config['structures'] if (has_dft and include_dft) else kernel_config['structures_model']
 
-    #Structures that are calculated with atomistic model (not through Kelvin equation)
-    structures_model = 78
+#Structures that are calculated with atomistic model (not through Kelvin equation)
+structures_model = kernel_config['structures_model']
 
-    #Excel filename with the kernel data
-    #Load Kernel
-    excel_database = r'kernel.xlsx'
-
-
-    #Load structural parameters into a Pandas dataframe
-    df_structures = pd.read_excel(excel_database,
-                    sheet_name='Details',
-                    header=1,
-                    nrows=structures,
-                    index_col=1,
-                    engine='openpyxl')
-
-    #Load calculated adsorption isotherms into a dataframe
-    df_isotherm = pd.read_excel(excel_database,
-                    #sheet_name='N2 77 K 1CLJ',
-                    #sheet_name='Ar 87 K 1CLJ', #comment above and uncomment this to use Ar 87 K kernel
-                    sheet_name='N2 77 K 1CLJ_2D-NLDFT',
-                    header=None,
-                    skiprows=8,
-                    #nrows=64,
-                    nrows=93,
-                    usecols=range(0,structures+1),
-                    engine='openpyxl')
-
-    #These are structures with low density that did not form a solid framework.
-    #By making their isotherms equal to zero, they are removed from the regression
-    df_isotherm[9] = 0
-    df_isotherm[13] = 0
-
-
-
-elif kernel_radio == "CO₂ at 298.15 K":
-    #Structures available in the kernel
-    structures = 78
-
-    #Structures that are calculated with atomistic model (not through Kelvin equation)
-    structures_model = 78
-
-    #Excel filename with the kernel data
-    #Load Kernel
-    excel_database = r'kernel.xlsx'
-
-
-    #Load structural parameters into a Pandas dataframe
-    df_structures = pd.read_excel(excel_database,
-                    sheet_name='Details',
-                    header=1,
-                    nrows=structures,
-                    index_col=1,
-                    engine='openpyxl')
-
-    #Load calculated adsorption isotherms into a dataframe
-    df_isotherm = pd.read_excel(excel_database,
-                    sheet_name='CO2 298 K',
-                    header=None,
-                    skiprows=8,
-                    nrows=50,
-                    usecols=range(0,structures+1),
-                    engine='openpyxl')
-
-    #These are structures with low density that did not form a solid framework.
-    #By making their isotherms equal to zero, they are removed from the regression
-    df_isotherm[9] = 0
-    df_isotherm[13] = 0
+#Load structural parameters and calculated adsorption isotherms
+df_structures, df_isotherm = load_kernel(kernel_config, structures)
 
 
 #Read pore size distributions and load into dataframe
-df_PSD_pb = pd.read_excel(excel_database,
+df_PSD_pb = pd.read_excel(EXCEL_DATABASE,
                 sheet_name='Poreblazer PSDs_2', #_2 for ultranarrow pores ~1 A
                 header=None,
                 skiprows=6,
@@ -737,3 +754,74 @@ st.download_button(
     file_name="export_PSD.tsv",
     mime="text/plain",
 )
+
+
+
+
+st.divider()
+st.header('Adsorbate Conversion')
+st.write('Because the fit expresses your sample as a combination of kernel structures, the same '
+         'structural weights can predict how the sample would adsorb a different gas, using that '
+         "gas's pre-computed kernel. Only the atomistic structures shared across kernels can be "
+         'transferred; if the fit above still includes DFT structures, uncheck "Include DFT '
+         'structures" in the Kernel Selection for a faithful conversion.')
+
+target_options = [name for name in KERNELS if name != kernel_radio]
+
+if not target_options:
+    st.info('No other kernel is available to convert to.')
+else:
+    target_name = st.selectbox("Predict the isotherm for:", target_options)
+    target_config = KERNELS[target_name]
+
+    #Only the leading atomistic structures share indices across kernels, so only those weights
+    #can be transferred. Any DFT weight in the source fit has no target counterpart.
+    n_transfer = min(structures_model, target_config['structures_model'])
+
+    _, df_target_iso = load_kernel(target_config, target_config['structures'])
+    np_target_iso = np.array(df_target_iso)[:, 1:]
+    np_target_pressure = np.array(df_target_iso)[:, 0]
+
+    #Predicted isotherm = same structural weights applied to the target kernel's isotherms
+    predicted_isotherm = np_target_iso[:, :n_transfer] @ solution[:n_transfer]
+
+    dropped_weight = solution[n_transfer:].sum()
+    if dropped_weight > 1e-9:
+        st.warning(f"{dropped_weight / solution.sum() * 100:.1f}% of the fit comes from DFT "
+                   f"structures with no counterpart in the {target_name} kernel; they were "
+                   f"excluded from this prediction. Uncheck \"Include DFT structures\" above "
+                   f"and re-run for a faithful conversion.")
+
+    convert_x_axis_scale = st.radio(
+        "Select x-axis scaling for the plot below",
+        ["Logarithmic", "Linear"],
+        key='log convert')
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.plot(np_target_pressure, predicted_isotherm,
+            label=f'Predicted {target_name}',
+            marker='o',
+            markersize=4,
+            linestyle='solid',
+            color='tab:green')
+    ax.set_xlabel("Relative pressure P/P$_0$")
+    ax.set_ylabel("Adsorbed amount (cm$^3$/g)")
+    ax.set_ylim(bottom=0)
+    if convert_x_axis_scale == 'Logarithmic':
+        ax.set_xscale('log')
+        ax.xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
+    ax.set_title(f'Predicted {target_name} isotherm')
+    ax.legend()
+    ax.grid(color='aliceblue')
+    st.pyplot(fig)
+
+    #Export predicted isotherm as tab-separated values
+    convert_export = "Relative pressure\tAdsorbed amount (cm3/g STP)\r\n"
+    for pressure, amount in zip(np_target_pressure, predicted_isotherm):
+        convert_export += f"{pressure:.8e}\t{amount:.7f}\r\n"
+    st.download_button(
+        label=f"Download predicted {target_name} isotherm as tab-separated values",
+        data=convert_export,
+        file_name="predicted_isotherm.tsv",
+        mime="text/plain",
+    )
