@@ -34,12 +34,32 @@ KERNELS = {
         "isotherm_rows": 93,
         "structures": 109,
         "structures_model": 78,
+        "pressure_unit": "P/P₀",
+        "pressure_xlim": (1e-8, 1.4),
     },
     "CO₂ at 298.15 K": {
         "isotherm_sheet": "CO2 298 K",
         "isotherm_rows": 50,
         "structures": 78,
         "structures_model": 78,
+        "pressure_unit": "bar",
+        "pressure_xlim": (1e-7, 2),
+    },
+    "CO₂ at 273 K": {
+        "isotherm_sheet": "CO2 273 K",
+        "isotherm_rows": 50,
+        "structures": 78,
+        "structures_model": 78,
+        "pressure_unit": "bar",
+        "pressure_xlim": (1e-7, 2),
+    },
+    "H₂ at 77 K": {
+        "isotherm_sheet": "H2 77 K",
+        "isotherm_rows": 35,
+        "structures": 78,
+        "structures_model": 78,
+        "pressure_unit": "bar",
+        "pressure_xlim": (5e-3, 200),
     },
 }
 
@@ -201,7 +221,7 @@ multi = '''This app predicts the 3D nanostructure of a porous carbon from an exp
   by fitting it as a linear combination of pre-calculated atomistic kernel isotherms (Non-Negative Least Squares).                      
   Results include the contributing structures, morphological statistics, and pore size distribution.
                                                                                                                                         
-  **Supported measurements:** N₂ at 77 K and CO₂ at 298.15 K.
+  **Supported measurements:** N₂ at 77 K, CO₂ at 298.15 K, CO₂ at 273 K, and H₂ at 77 K (high pressure, up to 120 bar).
 
   **Supported file formats:** tab-separated values (P/P₀ vs cm³/g) or Belsorp `.DAT` export files.
 
@@ -280,7 +300,8 @@ dft_present = (structures != structures_model)
 
 st.divider()
 st.header('Isotherm Data Load')
-st.markdown('Upload your isotherm as a text file. The file must only contain datapoints in ascending pressure order. Two columns separated by tabs, first for relative pressure, second for adsorbed amount in cc STP/g. See an example [here](https://raw.githubusercontent.com/nandobike/3d-vis/main/examples/a20_lao.tsv)')
+_pressure_col_desc = "relative pressure (P/P₀)" if kernel_config['pressure_unit'] == "P/P₀" else "pressure in bar"
+st.markdown(f'Upload your isotherm as a text file. The file must only contain datapoints in ascending pressure order. Two columns separated by tabs, first for {_pressure_col_desc}, second for adsorbed amount in cc STP/g. See an example [here](https://raw.githubusercontent.com/nandobike/3d-vis/main/examples/a20_lao.tsv)')
 
 #load experimental isotherm
 #It must be a tab-separated file with two columns.
@@ -355,7 +376,7 @@ exp_iso_interp = np.interp(np_pressure_gcmc, exp_iso[:,0], exp_iso[:,1]) #interp
 
 fig, ax = plt.subplots(figsize=(7,4))
 ax.plot(exp_iso[:,0], exp_iso[:,1],label='Experimental', marker='o', linestyle='none')
-ax.set_xlabel("Relative pressure P/P$_0$")
+ax.set_xlabel("Relative pressure P/P$_0$" if kernel_config['pressure_unit'] == "P/P₀" else "Pressure (bar)")
 ax.set_ylabel("Adsorbed amount (cm$^3$/g)")
 ax.set_ylim(bottom=0)  # adjust the bottom leaving top unchanged
 ax.plot(np_pressure_gcmc, exp_iso_interp,
@@ -366,7 +387,7 @@ ax.plot(np_pressure_gcmc, exp_iso_interp,
 if x_axis_scale == 'Logarithmic':
     ax.set_xscale('log')
     ax.xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
-    ax.set_xlim(left=1e-8, right=1.4)
+    ax.set_xlim(left=kernel_config['pressure_xlim'][0], right=kernel_config['pressure_xlim'][1])
 
 ax.set_title('Experimental Isotherm and Interpolation to Kernel')
 ax.legend()
@@ -478,7 +499,7 @@ if debug:
                 linestyle=linestyle, label=contribution_string,
                 alpha=alpha)
     ax.legend(prop={'size': 6}, loc='lower right')
-    ax.set_xlabel("Relative pressure P/P$_0$")
+    ax.set_xlabel("Relative pressure P/P$_0$" if kernel_config['pressure_unit'] == "P/P₀" else "Pressure (bar)")
     ax.set_ylabel("Adsorbed amount (cm$^3$/g)")
     st.pyplot(fig)
 
@@ -804,7 +825,7 @@ else:
             markersize=4,
             linestyle='solid',
             color='tab:green')
-    ax.set_xlabel("Relative pressure P/P$_0$")
+    ax.set_xlabel("Relative pressure P/P$_0$" if target_config['pressure_unit'] == "P/P₀" else "Pressure (bar)")
     ax.set_ylabel("Adsorbed amount (cm$^3$/g)")
     ax.set_ylim(bottom=0)
     if convert_x_axis_scale == 'Logarithmic':
