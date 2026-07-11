@@ -17,6 +17,10 @@ except ImportError:
 ANNEALING_TIME_S = 2e-9 #2 nanoseconds in seconds
 KB_EV_PER_K = 8.617e-5 #eV/K Boltzmann constant
 ACTIVATION_ENERGY_EV = 6.0 #eV
+#1 cm3 of liquid N2 at 77 K holds 646.5 cm3 STP of gas (22414 cm3 STP/mol / 34.67 cm3/mol
+#liquid molar volume). Used to derive the DFT structures' extensive properties from their
+#isotherm normalization; only the N2 77 K kernel has DFT structures.
+CM3_STP_PER_CM3_LIQUID_N2 = 646.5
 
 #Excel file holding every kernel (isotherms, structural details, PSDs)
 EXCEL_DATABASE = r'kernel.xlsx'
@@ -25,7 +29,7 @@ EXCEL_DATABASE = r'kernel.xlsx'
 # - isotherm_sheet / isotherm_rows: where to read the isotherm matrix and how many pressure points.
 # - structures: total number of structure columns in the kernel.
 # - structures_model: how many of those are atomistic. The remaining (structures - structures_model)
-#   are DFT/Kelvin structures appended at the end. They have no .xyz/render/TEM assets and no
+#   are DFT structures appended at the end. They have no .xyz/render/TEM assets and no
 #   counterpart in DFT-free kernels (e.g. CO2), so they cannot be transferred during conversion.
 #The first structures_model atomistic structures share the same indices across all kernels.
 KERNELS = {
@@ -185,7 +189,10 @@ def load_kernel(config, n_structures):
     Returns
     -------
     df_structures : pandas.DataFrame
-        Per-structure parameters, one row per structure (n_structures rows).
+        Per-structure parameters, one row per structure (n_structures rows). For DFT
+        structures the Details sheet holds only moment1 (pore width in Angstrom); their
+        extensive properties (pore volume, surface area) are derived here from the
+        isotherm normalization so they share the isotherms' per-gram basis.
     df_isotherm : pandas.DataFrame
         Column 0 is the pressure grid; columns 1..n_structures are the kernel isotherms.
     """
@@ -209,7 +216,118 @@ def load_kernel(config, n_structures):
     df_isotherm[9] = 0
     df_isotherm[13] = 0
 
+    #DFT structures are normalized so each isotherm column saturates at 1000 cm3 STP/g,
+    #which is not the per-gram basis of any real wall material. Derive their extensive
+    #properties from that same normalization so weight*property products are consistent:
+    #pore volume V = saturation/646.5 (complete filling with liquid N2) and slit-geometry
+    #surface area A = 2V/w, with w = moment1 (pore width in Angstrom).
+    n_model = config['structures_model']
+    if n_structures > n_model:
+        dft_rows = df_structures.index[n_model:]
+        dft_saturation = df_isotherm.iloc[-1, n_model + 1:n_structures + 1].to_numpy(dtype=float)
+        dft_volume = dft_saturation / CM3_STP_PER_CM3_LIQUID_N2
+        dft_width = df_structures['moment1'].iloc[n_model:].to_numpy(dtype=float)
+        df_structures.loc[dft_rows, 'Helium volume in cm^3/g'] = dft_volume
+        df_structures.loc[dft_rows, 'Geometric (point accessible) volume in cm^3/g'] = dft_volume
+        #2e4 converts (cm3/g) / Angstrom to m2/g
+        df_structures.loc[dft_rows, 'Total surface area m^2/g'] = 2e4 * dft_volume / dft_width
+
     return df_structures, df_isotherm
+
+
+def build_second_difference(n_bins):
+    """
+    Discrete second-difference (curvature) operator, shape (n_bins-2, n_bins).
+
+    Row i holds the stencil [1, -2, 1] at columns i, i+1, i+2. The Poreblazer
+    width grid is uniform (0.25 A spacing) so the plain stencil measures true
+    curvature; a non-uniform grid would need spacing-aware coefficients.
+    """
+    operator = np.zeros((n_bins - 2, n_bins))
+    for i in range(n_bins - 2):
+        operator[i, i] = 1.0
+        operator[i, i + 1] = -2.0
+        operator[i, i + 2] = 1.0
+    return operator
+
+
+def fit_weights(kernel_matrix, target, penalty_matrix, lam):
+    """
+    Non-negative least squares fit of the kernel to the experimental isotherm,
+    optionally regularized so the combined PSD is smooth.
+
+    Solves  min_f ||K f - N||^2 + lam_eff ||(L P) f||^2  s.t. f >= 0  by
+    appending sqrt(lam_eff) * (L P) rows to the design matrix and zeros to the
+    target, then calling plain NNLS (Tikhonov regularization in general form).
+
+    Scaling: lam is dimensionless. The penalty block is rescaled by
+    ||K||_F / ||L P||_F, so lam = 1 gives the isotherm and smoothness blocks
+    equal Frobenius norm. Cite lam together with this rule to reproduce a fit.
+
+    Parameters
+    ----------
+    kernel_matrix : (M, S) kernel isotherms K.
+    target : (M,) experimental isotherm N interpolated to the kernel pressures.
+    penalty_matrix : (W-2, S) precomputed L @ P, where P is the helium-volume
+        scaled PSD basis on the shared width grid.
+    lam : float, regularization strength. 0 reduces exactly to plain NNLS.
+
+    Returns
+    -------
+    solution : (S,) non-negative weights f.
+    fit_residual : float, ||K f - N||. Comparable across lam values.
+    penalty_value : float, ||(L P) f||, curvature of the combined PSD (unscaled).
+    """
+    kernel_matrix = np.asarray(kernel_matrix, dtype=float)
+    penalty_matrix = np.asarray(penalty_matrix, dtype=float)
+    if lam > 0:
+        scale = np.linalg.norm(kernel_matrix) / np.linalg.norm(penalty_matrix)
+        design = np.vstack([kernel_matrix, np.sqrt(lam) * scale * penalty_matrix])
+        rhs = np.concatenate([target, np.zeros(penalty_matrix.shape[0])])
+        solution, _ = nnls(design, rhs)
+        fit_residual = np.linalg.norm(kernel_matrix @ solution - target)
+    else:
+        solution, fit_residual = nnls(kernel_matrix, target)
+    penalty_value = np.linalg.norm(penalty_matrix @ solution)
+    return solution, fit_residual, penalty_value
+
+
+def lambda_sweep(kernel_matrix, target, penalty_matrix, lambdas):
+    """Fit once per lambda; returns (fit_residuals, penalty_values) for the L-curve."""
+    fit_residuals = np.empty(len(lambdas))
+    penalty_values = np.empty(len(lambdas))
+    for i, lam in enumerate(lambdas):
+        _, fit_residuals[i], penalty_values[i] = \
+            fit_weights(kernel_matrix, target, penalty_matrix, lam)
+    return fit_residuals, penalty_values
+
+
+def lcurve_corner(fit_residuals, penalty_values):
+    """
+    Index of the L-curve corner: the sweep point farthest from the straight
+    line joining the two endpoints in normalized log-log space, counting only
+    points that bulge toward the origin (the convex side, where the corner of
+    an L lives).
+
+    The signed distance matters: penalty-free structures (DFT) let the penalty
+    keep dropping at large lambda while the fit residual explodes, which bends
+    the tail of the curve away from the origin. An unsigned distance would pick
+    that tail as the "corner".
+    """
+    def normalize01(values):
+        values = np.log10(np.maximum(values, 1e-30))
+        span = values.max() - values.min()
+        return (values - values.min()) / span if span > 0 else np.zeros_like(values)
+    x = normalize01(fit_residuals)
+    y = normalize01(penalty_values)
+    dx, dy = x[-1] - x[0], y[-1] - y[0]
+    chord = np.hypot(dx, dy)
+    if chord == 0:
+        return 0
+    #positive = below the chord, toward the origin (true corner side);
+    #negative = the concave side, never a corner
+    distance = (dy * (x - x[0]) - dx * (y - y[0])) / chord
+    return int(np.argmax(distance))
 
 
 
@@ -268,7 +386,7 @@ include_dft = st.checkbox(
     "Include DFT structures in the fit",
     value=True,
     disabled=not has_dft,
-    help="DFT (Kelvin) structures model larger pores but have no counterpart in DFT-free "
+    help="DFT structures model larger pores but have no counterpart in DFT-free "
          "kernels such as CO₂. Uncheck for a fit that can be converted to any adsorbate "
          "without losing weight. Disabled when the selected kernel has no DFT structures."
 )
@@ -276,11 +394,35 @@ include_dft = st.checkbox(
 #Structures available in the kernel (atomistic only when DFT is excluded)
 structures = kernel_config['structures'] if (has_dft and include_dft) else kernel_config['structures_model']
 
-#Structures that are calculated with atomistic model (not through Kelvin equation)
+#Structures that are calculated with atomistic model (the rest are DFT)
 structures_model = kernel_config['structures_model']
 
 #Load structural parameters and calculated adsorption isotherms
 df_structures, df_isotherm = load_kernel(kernel_config, structures)
+
+#By default exclude DFT structures with pores smaller than 5 nm: the atomistic GCMC
+#structures (cells up to ~5 nm) already model that range realistically, and the point of
+#the method is to "see" the real structure, which too much DFT weight prevents.
+DFT_MIN_PORE_NM_DEFAULT = 5.0
+dft_min_pore_nm = DFT_MIN_PORE_NM_DEFAULT
+if has_dft and include_dft:
+    with st.expander("DFT pore-size cutoff"):
+        st.markdown('DFT structures with pores smaller than this cutoff are excluded from '
+                    'the fit. The atomistic structures already cover pores up to about '
+                    '5 nm (their cell size), so small-pore DFT structures only compete '
+                    'with them and hide the real structure. Set to 0 to keep every DFT '
+                    'structure.')
+        dft_min_pore_nm = st.slider("Exclude DFT structures with pores smaller than (nm):",
+                                    0.0, 42.0, DFT_MIN_PORE_NM_DEFAULT, 0.5)
+        dft_excluded = [s for s in range(structures_model + 1, structures + 1)
+                        if df_structures['moment1'][s] < dft_min_pore_nm * 10]
+        #Zeroing their isotherms removes them from the regression, same mechanism as the
+        #unformed structures 9 and 13.
+        for s in dft_excluded:
+            df_isotherm[s] = 0
+        st.caption(f"{len(dft_excluded)} of {structures - structures_model} DFT structures "
+                   f"excluded; {structures - structures_model - len(dft_excluded)} remain "
+                   f"in the fit.")
 
 
 #Read pore size distributions and load into dataframe
@@ -293,6 +435,20 @@ df_PSD_pb = pd.read_excel(EXCEL_DATABASE,
                 engine='openpyxl')
 #Convert pore size distribution data to a numpy array
 np_PSD_pb = np.array(df_PSD_pb)[:,1:]
+
+#PSD basis for the smoothness regularization. It must match the PSD the app reports
+#(PSD_solution below), which scales each structure's Poreblazer PSD by its helium volume,
+#so the same scaling is applied here.
+np_psd_basis = np_PSD_pb.astype(float) * np.array(df_structures['Helium volume in cm^3/g'])
+#Structures 9 and 13 have zeroed isotherms (never formed a solid framework). Zero their
+#PSDs too, otherwise the penalty could assign them weight purely to smooth the combined
+#PSD without affecting the isotherm fit.
+np_psd_basis[:, 8] = 0
+np_psd_basis[:, 12] = 0
+#DFT structures have all-zero columns in the Poreblazer sheet (their PSD is a
+#single-size spike handled separately), so the smoothness penalty cannot see them and
+#some weight may drift toward them at large lambda.
+np_penalty_matrix = build_second_difference(np_psd_basis.shape[0]) @ np_psd_basis
 
 #Create a boolean that means that there is DFT isotherms. Only True if structures_model not equals to structures
 dft_present = (structures != structures_model)
@@ -402,9 +558,85 @@ st.divider()
 st.header('Analysis Results')
 st.write('Here the results of fitting the experimental isotherm with the kernel isotherms. Look at the error plot and go back to remove highly inaccurate points if necessary.')
 
-#Use non-negative least squares to find the coefficients that fit the experimental isotherm from the kernel isotherms
+#Widget state keys let the "Use suggested λ" button in the diagnostics expander turn
+#regularization on and set the strength programmatically.
+if 'regularize' not in st.session_state:
+    st.session_state['regularize'] = False
+if 'log_lambda' not in st.session_state:
+    st.session_state['log_lambda'] = 0.0
+
+regularize = st.checkbox(
+    "Apply PSD-smoothness regularization",
+    key='regularize',
+    help="Penalizes the curvature of the combined pore size distribution so that "
+         "structures with nearly identical isotherms cannot trade weight freely under "
+         "noise and produce spiky PSDs. Unchecked reproduces the plain NNLS fit.")
+
+if regularize:
+    log_lambda = st.slider(
+        "Regularization strength log₁₀(λ)",
+        min_value=-4.0, max_value=4.0, step=0.01,
+        key='log_lambda',
+        help="λ is dimensionless: the penalty rows are rescaled so that λ = 1 gives the "
+             "isotherm-fit and PSD-smoothness terms equal weight (equal Frobenius norms). "
+             "Use the L-curve in the diagnostics below to pick a value.")
+    lambda_reg = 10.0 ** log_lambda
+    if dft_present:
+        st.caption("Note: DFT structures are not covered by the smoothness penalty (their "
+                   "PSD is a single-size spike handled separately), so a large λ can shift "
+                   "weight toward them. Watch the DFT part in Morphological Information, or "
+                   "uncheck \"Include DFT structures\" above.")
+else:
+    lambda_reg = 0.0
+
+with st.expander("Regularization diagnostics (conditioning and L-curve)"):
+    _nonzero_cols = np.linalg.norm(np_isotherm.astype(float), axis=0) > 0
+    _cond_K = np.linalg.cond(np_isotherm[:, _nonzero_cols].astype(float))
+    st.text(f"Condition number of kernel K (nonzero columns) = {_cond_K:.4g}\n"
+            f"Condition number of KᵀK = {_cond_K**2:.4g}")
+    if st.checkbox("Run λ sweep and plot the L-curve"):
+        sweep_lambdas = np.logspace(-4, 4, 25)
+        sweep_residuals, sweep_penalties = lambda_sweep(np_isotherm, exp_iso_interp,
+                                                        np_penalty_matrix, sweep_lambdas)
+        corner = lcurve_corner(sweep_residuals, sweep_penalties)
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.loglog(sweep_residuals, sweep_penalties, marker='o', markersize=4, color='tab:blue')
+        ax.loglog(sweep_residuals[corner], sweep_penalties[corner], marker='*', markersize=15,
+                  linestyle='none', color='tab:red',
+                  label=f'Corner: λ = {sweep_lambdas[corner]:.3g}')
+        for i in range(0, len(sweep_lambdas), 6):
+            ax.annotate(f'λ={sweep_lambdas[i]:.1g}', (sweep_residuals[i], sweep_penalties[i]),
+                        fontsize=7, textcoords='offset points', xytext=(5, 5))
+        _, current_res, current_pen = fit_weights(np_isotherm, exp_iso_interp,
+                                                  np_penalty_matrix, lambda_reg)
+        current_label = (f'Selected λ = {lambda_reg:.3g}' if lambda_reg > 0
+                         else 'Selected λ = 0 (regularization off)')
+        ax.loglog(current_res, current_pen, marker='D', markersize=9, linestyle='none',
+                  markerfacecolor='none', markeredgewidth=2, color='tab:green',
+                  label=current_label)
+        ax.set_xlabel('Isotherm fit residual (cm³/g)')
+        ax.set_ylabel('PSD curvature penalty')
+        ax.set_title('L-curve: pick λ near the corner')
+        ax.legend()
+        ax.grid(color='aliceblue')
+        st.pyplot(fig)
+        st.text(f"Suggested λ at the corner of the L-curve = {sweep_lambdas[corner]:.3g} "
+                f"(log₁₀ λ = {np.log10(sweep_lambdas[corner]):.2f})")
+
+        def use_suggested_lambda(log_lambda_value):
+            st.session_state['regularize'] = True
+            st.session_state['log_lambda'] = log_lambda_value
+
+        st.button("Use suggested λ as the regularization strength",
+                  on_click=use_suggested_lambda,
+                  args=(round(float(np.log10(sweep_lambdas[corner])), 2),))
+
+#Use non-negative least squares to find the coefficients that fit the experimental isotherm
+#from the kernel isotherms, optionally with the PSD-smoothness penalty (lambda_reg = 0
+#reduces exactly to plain nnls(np_isotherm, exp_iso_interp)).
 #https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.nnls.html
-solution, residual = nnls(np_isotherm, exp_iso_interp)
+solution, residual, penalty_value = fit_weights(np_isotherm, exp_iso_interp,
+                                                np_penalty_matrix, lambda_reg)
 
 
 
@@ -466,6 +698,8 @@ st.pyplot(fig)
 
 st.text(f"Residual total= {residual:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
 st.text(f"Residual per point = {residual/np_pressure_gcmc.size:.3f} cc/g") #norm of residuals = sqrt of sum (error^2)
+if lambda_reg > 0:
+    st.text(f"PSD curvature penalty = {penalty_value:.4g} (λ = {lambda_reg:.3g})")
 
 debug = st.checkbox("Check this box to show contributions of structures to full isotherm. Usually for debugging purposes.")
 
@@ -486,14 +720,14 @@ if debug:
     for i in range(top_n):
         struct = np.argsort(solution)[::-1][i]
         if struct+1 > structures_model:
-            kelvin_deco = ' DFT'
+            dft_deco = ' DFT'
             linestyle = 'dashed'
             alpha=0.7
         else:
-            kelvin_deco = ''
+            dft_deco = ''
             linestyle = 'solid'
             alpha=0.9
-        contribution_string = f"S #{struct+1} {kelvin_deco}"
+        contribution_string = f"S #{struct+1} {dft_deco}"
 
         ax.plot(np_pressure_gcmc, solution[struct] * np.array(np_isotherm[:,struct]),
                 linestyle=linestyle, label=contribution_string,
@@ -520,7 +754,7 @@ ax[0].set_xlabel("Structure number")
 ax[0].set_ylabel("Contribution (%)")
 ax[0].set_title('Contribution of each structure')
 #Density-Temperature space plot
-ax[1].scatter(df_structures['System density, g/cm^3'][:structures_model], #Kelvin structures not included
+ax[1].scatter(df_structures['System density, g/cm^3'][:structures_model], #DFT structures not included
               df_structures['T(K)'][:structures_model],
               s=solution[:structures_model]*2000,
               alpha=0.8)
@@ -544,10 +778,10 @@ for i in range(top_n):
 # Use this if all the range is desired: for i in range(structures):
     struct = np.argsort(solution)[::-1][i]
     if struct+1 > structures_model:
-        kelvin_deco = ' (DFT structure)'
+        dft_deco = ' (DFT structure)'
     else:
-        kelvin_deco = ''
-    contribution_string += f"Structure #{struct+1}:\t{solution[struct]*100:0.3f}% {kelvin_deco}\n"
+        dft_deco = ''
+    contribution_string += f"Structure #{struct+1}:\t{solution[struct]*100:0.3f}% {dft_deco}\n"
 
 contribution_string += "-"*34
 contribution_string += f"\nSum     =     {solution.sum()*100:.3f}%"
@@ -575,10 +809,10 @@ st.divider()
 st.header('Morphological Information')
 st.write('Below are textural statistics predicted using 3D-VIS for the isotherm provided.')
 
-#Some structures need to be not considered since are not atomistic but Kelvin
+#Some structures are DFT, not atomistic; several statistics below exclude them
 sum_solution = np.sum(solution)
 sum_solution_model = np.sum(solution[:structures_model])
-sum_solution_kelvin = np.sum(solution[structures_model:])
+sum_solution_dft = np.sum(solution[structures_model:])
 
 total_area = np.sum(df_structures['Total surface area m^2/g']*solution)
 simulation_temperature = np.sum((df_structures['T(K)']*solution)[:structures_model])/sum_solution_model
@@ -589,8 +823,8 @@ temp_exp = 1/temp_exp
 text_results_info = f"Sum of solution = {sum_solution:.3f}\n"
 text_results_info += f"Sum of solution only atomistic = {sum_solution_model:.3f}\n"
 if dft_present:
-    text_results_info += f"Sum of solution only DFT = {sum_solution_kelvin:.3f}\n"
-    text_results_info += f"DFT part = {sum_solution_kelvin/sum_solution*100:.2f}%\n"
+    text_results_info += f"Sum of solution only DFT = {sum_solution_dft:.3f}\n"
+    text_results_info += f"DFT part = {sum_solution_dft/sum_solution*100:.2f}%\n"
 text_results_info += f"Density g/cc (excludes DFT) = " \
                      f"{np.sum((df_structures['System density, g/cm^3']*solution)[:structures_model]):.4f}\n"
 text_results_info += f"He volume cc/g (excludes DFT) = " \
@@ -621,27 +855,27 @@ smooth_kernel = smooth_kernel / smooth_kernel.sum()
 PSD_solution_smooth = np.convolve(PSD_solution, smooth_kernel, mode='same')
 #First 3 points are not zero, but should not plot, we can use NaNs
 PSD_solution_smooth[0:3] = np.nan
-#Create a vector of the PSD sizes in Angstrom for Kelvin
-#May need to increase the range if there are larger pores in the kernel
-psd_kelvin_size = np.arange(df_PSD_pb[0].iloc[-1],
-                            df_structures['moment1'].iloc[-1]+1, #this may need to increase
-                            1,
-                            dtype=float)
-
-#Create a vector of zeros to store what the PSD for Kelvin will be
-psd_kelvin = np.zeros_like(psd_kelvin_size)
-
-
-for index, value in df_structures['moment1'][structures_model:].items():
-    index_pore = np.searchsorted(psd_kelvin_size, value)
-    psd_kelvin[index_pore] = df_structures['Helium volume in cm^3/g'][index] * solution[index-1]
-
-smooth_kernel_size = 40 # Increase this for smoother results, cannot be larger than kernel
-smooth_kernel = np.array(PascalTriangle(smooth_kernel_size))
-smooth_kernel = smooth_kernel / smooth_kernel.sum()
 
 if dft_present:
-    PSD_kelvin_smooth = np.convolve(psd_kelvin, smooth_kernel, mode='same')
+    #DFT pore sizes live on a 1 A grid from 0 to past the largest pore, with margin so
+    #the smoothing kernel does not clip the largest peak. DFT pores smaller than the end
+    #of the Poreblazer grid (52.4 A) overlay the atomistic PSD range on the plot.
+    psd_dft_size = np.arange(0,
+                             df_structures['moment1'].iloc[-1] + 30,
+                             1,
+                             dtype=float)
+
+    #Each DFT structure contributes its pore volume (derived in load_kernel from the
+    #isotherm normalization) as a spike integrating to volume*weight on the 1 A grid.
+    psd_dft = np.zeros_like(psd_dft_size)
+    for index, value in df_structures['moment1'][structures_model:].items():
+        index_pore = np.searchsorted(psd_dft_size, value)
+        psd_dft[index_pore] += df_structures['Helium volume in cm^3/g'][index] * solution[index-1]
+
+    smooth_kernel_size = 40 # Increase this for smoother results, cannot be larger than kernel
+    smooth_kernel = np.array(PascalTriangle(smooth_kernel_size))
+    smooth_kernel = smooth_kernel / smooth_kernel.sum()
+    PSD_dft_smooth = np.convolve(psd_dft, smooth_kernel, mode='same')
 
 # Plot PSD
 fig, ax = plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(8,4))
@@ -656,14 +890,8 @@ for i in range(2):
     ax[i].set_xlabel("Pore size (nm)")
 
 if dft_present:
-    ax[1].plot(np.append(df_PSD_pb[0]/10, psd_kelvin_size[0]/10)[-2:],
-            np.append(PSD_solution_smooth*10, 0)[-2:],
-            color="tab:blue",
-            linewidth=2, linestyle=(0, (1, 1)) )
-
-if dft_present:    
-    ax[1].plot(psd_kelvin_size/10,
-            PSD_kelvin_smooth*10/50, #usually too big
+    ax[1].plot(psd_dft_size/10,
+            PSD_dft_smooth*10,
             linewidth=3, label='DFT', color='darkseagreen')
 
 ax[1].legend()
