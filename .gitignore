@@ -53,3 +53,6 @@ venv
 
 # CLAUDE
 CLAUDE.md
+
+# private notes worktree (notes branch of the dev repo)
+notes/
