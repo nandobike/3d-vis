@@ -56,3 +56,8 @@ CLAUDE.md
 
 # private notes worktree (notes branch of the dev repo)
 notes/
+
+# working notes (issue tracking / session handoff, not part of the published app)
+open_issues.md
+history.md
+handoff.md
