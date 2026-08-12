@@ -65,6 +65,18 @@ KERNELS = {
         "pressure_unit": "bar",
         "pressure_xlim": (5e-3, 200),
     },
+    #The Ar sheet also carries 11 trailing columns (Excel CB-CL) built from a carbon black
+    #t-curve plus a Kelvin filling step. Their Kelvin constant is ~4.5x too small, so every
+    #width >= 8 A condenses in the last pressure step, and their widths (7-40 A) do not match
+    #the Details DFT rows (10-60 A). They are excluded until regenerated.
+    "Ar at 87 K": {
+        "isotherm_sheet": "Ar 87 K 1CLJ",
+        "isotherm_rows": 64,
+        "structures": 78,
+        "structures_model": 78,
+        "pressure_unit": "P/P₀",
+        "pressure_xlim": (1e-8, 1.4),
+    },
 }
 
 
@@ -339,7 +351,7 @@ multi = '''This app predicts the 3D nanostructure of a porous carbon from an exp
   by fitting it as a linear combination of pre-calculated atomistic kernel isotherms (Non-Negative Least Squares).                      
   Results include the contributing structures, morphological statistics, and pore size distribution.
                                                                                                                                         
-  **Supported measurements:** N₂ at 77 K, CO₂ at 298.15 K, CO₂ at 273 K, and H₂ at 77 K (high pressure, up to 120 bar).
+  **Supported measurements:** N₂ at 77 K, Ar at 87 K, CO₂ at 298.15 K, CO₂ at 273 K, and H₂ at 77 K (high pressure, up to 120 bar).
 
   **Supported file formats:** tab-separated values (P/P₀ vs cm³/g) or Belsorp `.DAT` export files.
 
