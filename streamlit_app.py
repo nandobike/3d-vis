@@ -532,11 +532,16 @@ input_method = st.radio("Isotherm input",
 file = None
 exp_iso = None #Set here only for pasted data; files are read below
 skipped_lines = 0
+EXAMPLE_ISOTHERM_FILE = "examples/a20_lao.tsv"
+if input_method != "Upload file": #Pre-fill the paste fields with the example isotherm
+    with open(EXAMPLE_ISOTHERM_FILE) as f:
+        example_rows = [line.strip().split('\t') for line in f if line.strip()]
 if input_method == "Upload file":
     file = st.file_uploader("Upload isotherm file")
 elif input_method == "Paste two columns":
     pasted_text = st.text_area(
         "Paste isotherm data",
+        value="\n".join("\t".join(row) for row in example_rows),
         height=250,
         placeholder="0.0001\t120.5\n0.0005\t180.2\n0.001\t210.7\n...",
         help="Two columns: pressure and adsorbed amount (cc STP/g). Copy both columns from "
@@ -548,6 +553,7 @@ else:
     with col_pressure:
         pressure_text = st.text_area(
             f"Pressure ({kernel_config['pressure_unit']})",
+            value="\n".join(row[0] for row in example_rows),
             height=250,
             placeholder="0.0001\n0.0005\n0.001\n...",
             help="One value per line, e.g. a column copied from Excel. "
@@ -555,6 +561,7 @@ else:
     with col_amount:
         amount_text = st.text_area(
             "Adsorbed amount (cc STP/g)",
+            value="\n".join(row[1] for row in example_rows),
             height=250,
             placeholder="120.5\n180.2\n210.7\n...",
             help="One value per line, in the same order as the pressures. "
@@ -578,7 +585,7 @@ if exp_iso is not None: #Pasted data
     if skipped_lines:
         st.caption(f"{skipped_lines} non-numeric line(s) skipped (e.g. headers).")
 elif file is None: #Nothing provided: load the example
-    file = "examples/a20_lao.tsv"
+    file = EXAMPLE_ISOTHERM_FILE
     st.write(f"No data was provided. Loading a default isotherm file: {file}")
     exp_iso = np.genfromtxt(file, delimiter="\t") #Load example. Originally a20_lao.tsv
 else: #Read uploaded file
