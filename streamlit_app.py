@@ -1167,9 +1167,14 @@ st.pyplot(fig)
 
 
 
+#The cumulative area comes from the Poreblazer PSDs, which only cover atomistic structures
+#(DFT columns are zero and the grid ends at 5.24 nm). Scale it to the atomistic area only;
+#scaling to total_area would spread the DFT area over atomistic pore sizes.
+atomistic_area = np.sum((df_structures['Total surface area m^2/g']*solution)[:structures_model])
+dft_area = total_area - atomistic_area
 cum_area = cumulative_trapezoid(PSD_solution*10/(df_PSD_pb[0]/10), x=df_PSD_pb[0]/10, initial=0)
-cum_area /= cum_area[-1]
-cum_area *= total_area
+if cum_area[-1] > 0:
+    cum_area *= atomistic_area / cum_area[-1]
 
 pore_range_area_tuple = st.slider(
     "Move the slider below to select pore range to calculate specific surface area within a custom pore range (nm):",
@@ -1217,6 +1222,10 @@ ax.text(np.mean([0, pore_range_area[0]]),
 
 st.pyplot(fig)        
 st.text(f'Area between {pore_range_area[0]} nm and {pore_range_area[1]} nm is {area_between:.1f} m²/g')
+if dft_present:
+    st.caption(f'The cumulative area covers atomistic structures only ({atomistic_area:.0f} m²/g). '
+               f'DFT structures add {dft_area:.0f} m²/g in their own pores, which are not '
+               f'included in the curve or in the area between pore sizes above.')
 
 
 
