@@ -393,6 +393,52 @@ def lcurve_corner(fit_residuals, penalty_values):
     return int(np.argmax(distance))
 
 
+def relative_error(measured, fitted):
+    """(measured - fitted) / measured. Non-positive measured amounts give -inf/nan, which
+    comparisons against a tolerance treat as failing points."""
+    with np.errstate(divide='ignore', invalid='ignore'):
+        return (measured - fitted) / measured
+
+
+def suggest_points_to_remove(pressure_grid, kernel_matrix, exp_iso, tolerance=0.15,
+                             low_pressure_fraction=1e-3):
+    """
+    Suggest how many initial kernel grid points to remove before fitting.
+
+    Two steps:
+    1. Extrapolation limit: kernel points below the lowest measured pressure are always
+       removed, since np.interp only repeats the first measured amount there.
+    2. Low-pressure cutoff: fit with plain NNLS; if any kept point in the low-pressure region
+       (pressure below low_pressure_fraction times the top grid pressure) has a relative
+       error above tolerance, cut just past the last such point and refit, until none do.
+       The tolerance is fixed rather than scaled to the fit quality, because the fit has a
+       smooth systematic error of 5-10% at 1e-6 to 1e-4 P/P0 that an adaptive threshold
+       would keep cutting into.
+
+    Tuned with tolerance 0.15 on the N2 examples in examples/. Plain NNLS is used regardless
+    of the regularization setting so the suggestion does not depend on lambda.
+
+    Returns
+    -------
+    n_extrapolated : int, number of kernel points below the lowest measured pressure.
+    n_suggested : int, suggested number of points to remove (>= n_extrapolated).
+    """
+    pressure_grid = np.asarray(pressure_grid, dtype=float)
+    kernel_matrix = np.asarray(kernel_matrix, dtype=float)
+    n_extrapolated = int(np.searchsorted(pressure_grid, np.min(exp_iso[:, 0])))
+    low_pressure = pressure_grid < low_pressure_fraction * pressure_grid[-1]
+    n = n_extrapolated
+    while n < pressure_grid.size - 1:
+        target = np.interp(pressure_grid[n:], exp_iso[:, 0], exp_iso[:, 1])
+        weights, _ = nnls(kernel_matrix[n:], target)
+        error = relative_error(target, kernel_matrix[n:] @ weights)
+        failing = np.flatnonzero(~(np.abs(error) <= tolerance) & low_pressure[n:])
+        if failing.size == 0:
+            break
+        n += int(failing[-1]) + 1
+    return n_extrapolated, min(n, pressure_grid.size - 1)
+
+
 
 
 
@@ -638,15 +684,49 @@ for column, name, not_ascending in ((0, "Pressures", np.diff(exp_iso[:,0]) <= 0)
 
 st.divider()
 st.header('Data Cleaning and Validation')
-st.write('Usually it is necessary to remove a few experimental points from the very low pressures since they are very inaccurate. Look at the error in the fitted isotherm plot in the Results section to know how many to remove.')
-#Remove some initial experimental points where the experimental data is usually flawed
-#points_to_remove = 13 #for a20_lao
+st.write('Usually it is necessary to remove a few points from the very low pressures since the experimental data there is very inaccurate. Look at the relative error in the fitted isotherm plot in the Results section to know how many to remove, or use the suggested value.')
+#Remove initial kernel grid points where the experimental data is usually flawed.
+#The slider counts kernel pressure grid points, not measured points.
+kernel_pressure_grid = np.array(df_isotherm)[:,0]
+kernel_grid_points = kernel_pressure_grid.size
+SUGGESTION_TOLERANCE = 0.15
+n_extrapolated, n_suggested = suggest_points_to_remove(kernel_pressure_grid,
+                                                       np.array(df_isotherm)[:,1:],
+                                                       exp_iso,
+                                                       tolerance=SUGGESTION_TOLERANCE)
+
+#Widget state key lets the "Use suggested value" button set the slider programmatically.
+#Clamp a stored value that no longer fits, e.g. after switching to a kernel with fewer points.
+if 'points_to_remove' not in st.session_state:
+    st.session_state['points_to_remove'] = 0
+st.session_state['points_to_remove'] = min(st.session_state['points_to_remove'],
+                                           kernel_grid_points - 1)
+
 points_to_remove = st.slider("Use the slider below to remove initial points from the isotherm:",
                              0,
-                             np.shape(exp_iso)[0],
-                             0)
+                             kernel_grid_points - 1,
+                             key='points_to_remove')
 
-st.write(f'Now the points from {points_to_remove} to {np.shape(exp_iso)[0]} will be used in the calculation')
+def use_suggested_points(value):
+    st.session_state['points_to_remove'] = value
+
+col_suggestion, col_button = st.columns([3, 1])
+with col_suggestion:
+    st.markdown(f"Suggested: **{n_suggested}** points. {n_extrapolated} kernel points lie "
+                f"below the lowest measured pressure, and "
+                f"{n_suggested - n_extrapolated} more are removed until every low-pressure point "
+                f"fits within ±{SUGGESTION_TOLERANCE:.0%} relative error.")
+with col_button:
+    st.button("Use suggested value", on_click=use_suggested_points, args=(n_suggested,),
+              disabled=(points_to_remove == n_suggested))
+if points_to_remove < n_extrapolated:
+    st.warning(f"The first {n_extrapolated - points_to_remove} kernel point(s) kept lie below the "
+               f"lowest measured pressure, where the experimental isotherm is not measured "
+               f"and interpolation only repeats the first measured amount.")
+
+st.write(f'Kernel points {points_to_remove + 1} to {kernel_grid_points} will be used in the '
+         f'calculation (pressure ≥ {kernel_pressure_grid[points_to_remove]:.3g} '
+         f'{kernel_config["pressure_unit"]}).')
 
 x_axis_scale = st.radio(
     "Select x-axis scaling for the plot below",
@@ -777,50 +857,81 @@ x_axis_scale = st.radio(
     key='log fit')
 log_scale_plot = (x_axis_scale == "Logarithmic") #use True if you want to plot using logarithmic scale in x
 
-fig, ax = plt.subplots(2, gridspec_kw={'height_ratios': [1, 3]}, dpi=120) #, figsize=(3,3)
+fitted_isotherm = calculate_isotherm(solution)
+fit_error = exp_iso_interp - fitted_isotherm
+fit_relative_error = 100 * relative_error(exp_iso_interp, fitted_isotherm)
 
-# Top plot for error
+#Removed points, drawn lighter: the solution weights applied to the full kernel grid, compared
+#with the measurement. Points below the lowest measured pressure are left out, since the
+#experimental value there is only the first measured amount repeated.
+removed_slice = slice(min(n_extrapolated, points_to_remove), points_to_remove)
+removed_pressure = kernel_pressure_grid[removed_slice]
+removed_fitted = np.array(df_isotherm)[removed_slice, 1:].astype(float) @ solution
+removed_measured = np.interp(removed_pressure, exp_iso[:,0], exp_iso[:,1])
+removed_error = removed_measured - removed_fitted
+removed_relative_error = 100 * relative_error(removed_measured, removed_fitted)
+REMOVED_ALPHA = 0.3
+
+fig, ax = plt.subplots(3, sharex=True, gridspec_kw={'height_ratios': [1, 1, 3]},
+                       figsize=(6.4, 6.4), dpi=120)
+
+# Top plot for absolute error
 ax[0].set_title('Experimental Data and Fitted Isotherm')
-ax[0].plot(np_pressure_gcmc, exp_iso_interp-calculate_isotherm(solution), marker='o', linestyle='solid', color='tab:orange')
-if log_scale_plot:
-    ax[0].set_xscale('log')
-    ax[0].xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
-
-ax[0].set_ylabel("Error (cm$^3$/g)")
+ax[0].plot(removed_pressure, removed_error, marker='o', linestyle='solid', color='tab:orange',
+           alpha=REMOVED_ALPHA)
+ax[0].plot(np_pressure_gcmc, fit_error, marker='o', linestyle='solid', color='tab:orange')
+ax[0].set_ylabel("Error\n(cm$^3$/g)")
 ax[0].grid(color='aliceblue')
 
-
-if log_scale_plot:
-    ax[0].set_xlim(left=1e-8, right=1.4)
-else:
-    ax[0].set_xlim(left=-0.02, right=1)
-
-ax[0].axes.get_xaxis().set_ticks([])
+# Middle plot for relative error, where bad low-pressure points stand out. The y range follows
+# the points used in the fit, so wildly wrong removed points do not squash it.
+ax[1].axhspan(-100 * SUGGESTION_TOLERANCE, 100 * SUGGESTION_TOLERANCE, color='tab:green',
+              alpha=0.1, linewidth=0, label=f'±{SUGGESTION_TOLERANCE:.0%}')
+ax[1].plot(removed_pressure, removed_relative_error, marker='o', linestyle='solid',
+           color='tab:orange', alpha=REMOVED_ALPHA)
+ax[1].plot(np_pressure_gcmc, fit_relative_error, marker='o', linestyle='solid', color='tab:orange')
+finite_relative_error = np.abs(fit_relative_error[np.isfinite(fit_relative_error)])
+relative_error_limit = 1.2 * finite_relative_error.max() if finite_relative_error.size else 0
+relative_error_limit = min(100, max(300 * SUGGESTION_TOLERANCE, relative_error_limit))
+ax[1].set_ylim(-relative_error_limit, relative_error_limit)
+ax[1].set_ylabel("Relative\nerror (%)")
+ax[1].legend(loc='upper right', fontsize=7)
+ax[1].grid(color='aliceblue')
 
 # Bottom plot of isotherm and fitted isotherm
-ax[1].plot(exp_iso[:,0], exp_iso[:,1],
+exp_used = exp_iso[:,0] >= kernel_pressure_grid[points_to_remove]
+ax[2].plot(exp_iso[~exp_used,0], exp_iso[~exp_used,1],
+           label='Experimental (removed)' if np.any(~exp_used) else None,
+           marker='o',
+           linestyle='none',
+           color='tab:orange',
+           alpha=REMOVED_ALPHA)
+ax[2].plot(exp_iso[exp_used,0], exp_iso[exp_used,1],
            label='Experimental',
            marker='o',
            linestyle='none',
            color='tab:orange')
-ax[1].plot(np_pressure_gcmc, calculate_isotherm(solution),
+ax[2].plot(removed_pressure, removed_fitted,
+           linestyle='dotted',
+           color='black',
+           alpha=0.5)
+ax[2].plot(np_pressure_gcmc, fitted_isotherm,
            label='Solution',
            linestyle='solid',
            color='black')
-if log_scale_plot:
-    ax[1].set_xscale('log')
-    ax[1].xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
+ax[2].set_xlabel("Relative pressure P/P$_0$" if kernel_config['pressure_unit'] == "P/P₀" else "Pressure (bar)")
+ax[2].set_ylabel("Adsorbed amount (cm$^3$/g)")
+ax[2].legend()
+ax[2].grid(color='aliceblue')
+ax[2].set_ylim(bottom=0)
 
-ax[1].set_xlabel("Relative pressure P/P$_0$")
-ax[1].set_ylabel("Adsorbed amount (cm$^3$/g)")
-ax[1].legend()
-ax[1].grid(color='aliceblue')
-
-ax[1].set_ylim(bottom=0)
+#Shared x axis: scale and limits apply to all three panels
 if log_scale_plot:
-    ax[1].set_xlim(left=1e-8, right=1.4)
+    ax[2].set_xscale('log')
+    ax[2].xaxis.set_major_locator(ticker.LogLocator(base=10, numticks=15))
+    ax[2].set_xlim(left=kernel_config['pressure_xlim'][0], right=kernel_config['pressure_xlim'][1])
 else:
-    ax[1].set_xlim(left=-0.02, right=1)
+    ax[2].set_xlim(left=-0.02 * kernel_pressure_grid[-1], right=kernel_pressure_grid[-1])
 
 st.pyplot(fig)
 
