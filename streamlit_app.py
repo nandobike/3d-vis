@@ -116,6 +116,57 @@ def read_branch(contents, branch) -> "np.ndarray":
     return isotherm
 
 
+def parse_pasted_isotherm(text) -> "tuple[np.ndarray, int]":
+    """
+    Parses an isotherm pasted as text, typically copied from two Excel columns.
+    Columns may be separated by tabs, semicolons, commas or spaces. Decimal commas
+    (e.g. "0,015") are accepted when the columns are not comma-separated.
+    Lines that are not two numbers (headers, blank lines) are skipped.
+    Returns the (n, 2) array and the number of skipped non-blank lines.
+    """
+    rows = []
+    skipped = 0
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if '\t' in line:
+            fields = line.split('\t')
+        elif ';' in line:
+            fields = line.split(';')
+        elif len(line.split()) >= 2:
+            fields = line.split()
+        else:
+            fields = line.split(',')
+        fields = [f.strip() for f in fields if f.strip()]
+        try:
+            if len(fields) < 2:
+                raise ValueError
+            rows.append([float(f.replace(',', '.')) for f in fields[:2]])
+        except ValueError:
+            skipped += 1
+    return np.array(rows, dtype=float).reshape(-1, 2), skipped
+
+
+def parse_pasted_column(text) -> "tuple[np.ndarray, int]":
+    """
+    Parses a single column of numbers pasted as text, one value per line.
+    Decimal commas are accepted. Lines that are not a number (headers) are skipped.
+    Returns the values and the number of skipped non-blank lines.
+    """
+    values = []
+    skipped = 0
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            values.append(float(line.replace(',', '.')))
+        except ValueError:
+            skipped += 1
+    return np.array(values, dtype=float), skipped
+
+
 def plot_top_structures(solution, offset=0):
     """                                                                                                                               
     Plot a 2x3 grid of the top 3 contributing kernel structures, ranked by solution weight.
@@ -353,7 +404,7 @@ multi = '''This app predicts the 3D nanostructure of a porous carbon from an exp
                                                                                                                                         
   **Supported measurements:** N₂ at 77 K, Ar at 87 K, CO₂ at 298.15 K, CO₂ at 273 K, and H₂ at 77 K (high pressure, up to 120 bar).
 
-  **Supported file formats:** tab-separated values (P/P₀ vs cm³/g) or Belsorp `.DAT` export files.
+  **Supported file formats:** tab-separated values (P/P₀ vs cm³/g) or Belsorp `.DAT` export files. Data can also be pasted directly, e.g. copied from Excel.
 
   **Workflow:** Select kernel → Upload isotherm → Clean data → Analyze → Export PSD.
 
@@ -469,25 +520,69 @@ dft_present = (structures != structures_model)
 st.divider()
 st.header('Isotherm Data Load')
 _pressure_col_desc = "relative pressure (P/P₀)" if kernel_config['pressure_unit'] == "P/P₀" else "pressure in bar"
-st.markdown(f'Upload your isotherm as a text file. The file must only contain datapoints in ascending pressure order. Two columns separated by tabs, first for {_pressure_col_desc}, second for adsorbed amount in cc STP/g. See an example [here](https://raw.githubusercontent.com/nandobike/3d-vis/main/examples/a20_lao.tsv)')
+st.markdown(f'Upload your isotherm as a text file, or paste it directly from Excel, either as two columns together or as the pressure and adsorbed amount columns in separate fields. The data must only contain datapoints in ascending pressure order. Two columns separated by tabs, first for {_pressure_col_desc}, second for adsorbed amount in cc STP/g. See an example [here](https://raw.githubusercontent.com/nandobike/3d-vis/main/examples/a20_lao.tsv)')
+
+input_method = st.radio("Isotherm input",
+                        ["Upload file", "Paste two columns", "Paste pressure and amount separately"],
+                        horizontal=True)
 
 #load experimental isotherm
 #It must be a tab-separated file with two columns.
 #First column is relative pressure and second column adsorbed volume in units cc STP/g
-file = st.file_uploader("Upload isotherm file")
-
-if file is None:
-    file = "examples/a20_lao.tsv"
-    st.write(f"No file was uploaded. Loading a default isotherm file: {file}")
-
+file = None
+exp_iso = None #Set here only for pasted data; files are read below
+skipped_lines = 0
+if input_method == "Upload file":
+    file = st.file_uploader("Upload isotherm file")
+elif input_method == "Paste two columns":
+    pasted_text = st.text_area(
+        "Paste isotherm data",
+        height=250,
+        placeholder="0.0001\t120.5\n0.0005\t180.2\n0.001\t210.7\n...",
+        help="Two columns: pressure and adsorbed amount (cc STP/g). Copy both columns from "
+             "Excel and paste here. Header rows and blank lines are ignored.")
+    if pasted_text.strip():
+        exp_iso, skipped_lines = parse_pasted_isotherm(pasted_text)
 else:
-    st.write(f'A file was uploaded: {file.name} as {file.type}')
+    col_pressure, col_amount = st.columns(2)
+    with col_pressure:
+        pressure_text = st.text_area(
+            f"Pressure ({kernel_config['pressure_unit']})",
+            height=250,
+            placeholder="0.0001\n0.0005\n0.001\n...",
+            help="One value per line, e.g. a column copied from Excel. "
+                 "Header rows and blank lines are ignored.")
+    with col_amount:
+        amount_text = st.text_area(
+            "Adsorbed amount (cc STP/g)",
+            height=250,
+            placeholder="120.5\n180.2\n210.7\n...",
+            help="One value per line, in the same order as the pressures. "
+                 "Header rows and blank lines are ignored.")
+    if pressure_text.strip() or amount_text.strip():
+        pressures, skipped_pressure = parse_pasted_column(pressure_text)
+        amounts, skipped_amount = parse_pasted_column(amount_text)
+        if len(pressures) != len(amounts):
+            st.error(f"Read {len(pressures)} pressure values but {len(amounts)} adsorbed "
+                     f"amounts. Both fields must have the same number of values.")
+            st.stop()
+        exp_iso = np.column_stack((pressures, amounts))
+        skipped_lines = skipped_pressure + skipped_amount
 
-
-
-if isinstance(file, str): #True if file is the example. False if it is an uploaded file.
+if exp_iso is not None: #Pasted data
+    if exp_iso.shape[0] < 2:
+        st.error("Could not read at least two data points from the pasted text. "
+                 "Paste numeric values for pressure and adsorbed amount.")
+        st.stop()
+    st.write(f"Read {exp_iso.shape[0]} data points from the pasted text.")
+    if skipped_lines:
+        st.caption(f"{skipped_lines} non-numeric line(s) skipped (e.g. headers).")
+elif file is None: #Nothing provided: load the example
+    file = "examples/a20_lao.tsv"
+    st.write(f"No data was provided. Loading a default isotherm file: {file}")
     exp_iso = np.genfromtxt(file, delimiter="\t") #Load example. Originally a20_lao.tsv
 else: #Read uploaded file
+    st.write(f'A file was uploaded: {file.name} as {file.type}')
     #read first line and remove whitespace
     first_line = next(file).strip()
     if first_line == b'====================': #If a Belsorp file is loaded
@@ -517,7 +612,21 @@ else: #Read uploaded file
             exp_iso = np.column_stack((exp_iso[:,0]/exp_iso[:,1], exp_iso[:,2]))
         #st.write(exp_iso) #Debug
     else: #Now the standard file
+        file.seek(0) #Rewind: the format check above consumed the first line
         exp_iso = np.genfromtxt(file, delimiter="\t") #load isotherm file into numpy array
+
+#Warn (without stopping) when the data is not ascending, e.g. a desorption branch was
+#included. The interpolation to the kernel grid assumes increasing pressures.
+#Equal consecutive adsorbed amounts (a plateau) are not flagged, only decreases.
+for column, name, not_ascending in ((0, "Pressures", np.diff(exp_iso[:,0]) <= 0),
+                                    (1, "Adsorbed amounts", np.diff(exp_iso[:,1]) < 0)):
+    if np.any(not_ascending):
+        first_bad = int(np.argmax(not_ascending)) + 2 #1-based number of the offending point
+        st.warning(f"{name} are not in ascending order ({int(np.sum(not_ascending))} "
+                   f"point(s), first at point {first_bad}: "
+                   f"{exp_iso[first_bad-2, column]:g} → {exp_iso[first_bad-1, column]:g}). "
+                   f"Only the adsorption branch should be used, otherwise the "
+                   f"interpolation to the kernel may be wrong.")
 
 
 st.divider()
