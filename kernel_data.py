@@ -44,14 +44,16 @@ def excluded_positions(manifest):
 def kernel_configs(manifest):
     """
     Map each kernel's display name to its config: the manifest entry plus
-    structures (all columns) and structures_model (atomistic columns).
+    structures (all columns) and structures_model (atomistic columns). The manifest's
+    structure-library pin is renamed structures_version.
     """
     n_atomistic = len(structure_ids(manifest))
     configs = {}
     for kernel in manifest['kernels']:
         n_columns = len(pd.read_csv(DATA_DIR / kernel['isotherm'], nrows=0).columns) - 1
         configs[kernel['name']] = {
-            **kernel,
+            **{k: v for k, v in kernel.items() if k != 'structures'},
+            'structures_version': kernel['structures'],
             'structures': n_columns,
             'structures_model': n_atomistic,
             'pressure_xlim': tuple(kernel['pressure_xlim']),
@@ -99,6 +101,26 @@ def file_sha256(relative_path):
     #Line endings are normalized so a Windows checkout hashes the same
     content = (DATA_DIR / relative_path).read_bytes().replace(b'\r\n', b'\n')
     return hashlib.sha256(content).hexdigest()
+
+
+def kernel_files(manifest, key):
+    """Data files a kernel's results depend on: the structure library plus its own files."""
+    structures = manifest['structures']
+    kernel = next(k for k in manifest['kernels'] if k['key'] == key)
+    files = [structures['file'], structures['poreblazer_psd'], kernel['isotherm']]
+    return files + ([kernel['dft_pores']] if 'dft_pores' in kernel else [])
+
+
+def fingerprint(manifest, key):
+    """Short sha256 over every data file behind a kernel, to stamp on exported results."""
+    digest = hashlib.sha256()
+    for f in kernel_files(manifest, key):
+        digest.update(f'{f}:{file_sha256(f)}\n'.encode())
+    return digest.hexdigest()[:12]
+
+
+def read_changelog():
+    return (DATA_DIR / 'CHANGELOG.md').read_text(encoding='utf-8')
 
 
 def versioned_files(manifest):

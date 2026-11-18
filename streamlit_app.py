@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import matplotlib.image as img
 import matplotlib.ticker as ticker
 import pandas as pd
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
 from scipy.optimize import nnls
 
 import kernel_data
@@ -39,6 +42,49 @@ KERNELS = kernel_data.kernel_configs(MANIFEST)
 #1-based positions of structures that never formed a solid framework (manifest
 #structures.excluded); their isotherms and PSDs are zeroed so they get no weight.
 EXCLUDED_STRUCTURES = kernel_data.excluded_positions(MANIFEST)
+
+STRUCTURE_LIBRARY = MANIFEST['structures']
+
+
+@st.cache_resource
+def app_commit():
+    """Short git commit of the running app, or 'unknown' outside a git checkout."""
+    try:
+        return subprocess.run(['git', 'rev-parse', '--short', 'HEAD'],
+                              cwd=Path(__file__).resolve().parent, capture_output=True,
+                              text=True, timeout=5, check=True).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return 'unknown'
+
+
+def kernel_version_text(config):
+    """e.g. 'N₂ at 77 K v1.1.0 (unpublished), structures 1.0.0 (Carbon 2023)'"""
+    status = 'published' if config['published'] else 'unpublished'
+    structures_label = (f" ({STRUCTURE_LIBRARY['label']})"
+                        if config['structures_version'] == STRUCTURE_LIBRARY['version'] else '')
+    return (f"{config['name']} v{config['version']} ({status}), "
+            f"structures {config['structures_version']}{structures_label}")
+
+
+def export_header(lines):
+    """Comment lines ('# ...') stamped at the top of every exported file."""
+    stamp = [f"3D-VIS export, {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC, "
+             f"app commit {app_commit()}"]
+    stamp += lines
+    stamp.append(f"Cite: F. Vallejos-Burgos et al., Carbon 215 (2023) 118431, "
+                 f"{STRUCTURE_LIBRARY['reference']}")
+    return ''.join(f'# {line}\r\n' for line in stamp)
+
+
+def changelog_markdown():
+    """data/CHANGELOG.md with its headings demoted to fit inside an expander."""
+    lines = []
+    for line in kernel_data.read_changelog().splitlines()[1:]:  #drop the document title
+        if line.startswith('#'):
+            level = len(line) - len(line.lstrip('#'))
+            line = '#' * min(level + 2, 6) + line[level:]
+        lines.append(line)
+    return '\n'.join(lines)
 
 
 def find_range(contents):
@@ -429,12 +475,40 @@ st.header('Kernel Selection')
 st.markdown('Select a kernel. The kernel is the set of the simulated adsorption isotherms. '
             'It must match the experimental conditions of the measurement to be uploaded next.')
 
+def _kernel_caption(config):
+    badge = ':green-badge[Published]' if config['published'] else ':orange-badge[Unpublished]'
+    return (f"{badge} structures {config['structures_version']} "
+            f"({STRUCTURE_LIBRARY['label']})")
+
 kernel_radio = st.radio(
     "Select Simulated Kernel",
     list(KERNELS.keys()),
-    index=0
+    index=0,
+    format_func=lambda name: f"{name} · v{KERNELS[name]['version']}",
+    captions=[_kernel_caption(config) for config in KERNELS.values()],
 )
 kernel_config = KERNELS[kernel_radio]
+st.caption(kernel_config['description'])
+
+with st.expander("Kernel versions and changelog"):
+    st.markdown(
+        "Kernels and structures are versioned with "
+        "[Pride Versioning](https://pridever.org) (PROUD.DEFAULT.SHAME): **proud** for "
+        "published releases, **default** for intentional changes such as new structures "
+        "or models, **shame** for fixes to wrong data. Unpublished kernels stay at 0.x. "
+        "Only the current version of each kernel is offered here; earlier versions are "
+        "kept in the [GitHub repository](https://github.com/nandobike/3d-vis) as git tags "
+        "(e.g. `n2_77k/v1.0.0`, the kernel used in the Carbon 2023 paper). Every exported "
+        "file records the kernel and structure versions it was computed with.")
+    st.markdown(
+        "| Kernel | Version | Status | Structures |\n|---|---|---|---|\n" +
+        ''.join(f"| {name} | {c['version']} | "
+                f"{'Published' if c['published'] else 'Unpublished'} | "
+                f"{c['structures_version']} |\n" for name, c in KERNELS.items()) +
+        f"\nStructure library {STRUCTURE_LIBRARY['version']}: "
+        f"{STRUCTURE_LIBRARY['label']} ({STRUCTURE_LIBRARY['reference']})")
+    st.divider()
+    st.markdown(changelog_markdown())
 
 #DFT structures can't be transferred to DFT-free kernels (e.g. CO2). Let the user exclude
 #them so the fit uses only the atomistic structures shared by every kernel, which makes the
@@ -709,6 +783,7 @@ st.pyplot(fig)
 st.divider()
 st.header('Analysis Results')
 st.write('Here the results of fitting the experimental isotherm with the kernel isotherms. Look at the error plot and go back to remove highly inaccurate points if necessary.')
+st.caption(f"Computed with {kernel_version_text(kernel_config)}.")
 
 #Widget state keys let the "Use suggested λ" button in the diagnostics expander turn
 #regularization on and set the strength programmatically.
@@ -1182,8 +1257,22 @@ psd_export = np.array([df_PSD_pb[0]/10,
                         cum_psd,
                         cum_area,
                         PSD_solution_smooth*10/(df_PSD_pb[0]/10)]).T
+#Fit settings stamped on exports, so a result can be reproduced from the file alone
+if has_dft and include_dft:
+    _dft_setting = f"DFT structures included (pores >= {dft_min_pore_nm:g} nm)"
+elif has_dft:
+    _dft_setting = "DFT structures excluded"
+else:
+    _dft_setting = "no DFT structures in this kernel"
+fit_settings = (f"Fit: first {points_to_remove} kernel points removed, {_dft_setting}, "
+                f"PSD-smoothness lambda = {lambda_reg:.4g}")
+kernel_stamp = (f"Kernel: {kernel_version_text(kernel_config)}, data "
+                f"{kernel_data.fingerprint(MANIFEST, kernel_config['key'])}")
+file_tag = f"{kernel_config['key']}-v{kernel_config['version']}"
+
 #header_psd_export = f"Pore size (nm)\tPSD\tSmoothed PSD\tCumulative PSD\tCumulative SSA"
-export_string = f"Pore size (nm)\tPSD\tSmoothed PSD\tCumulative PSD\tCumulative SSA\tSSA Smoothed\r\n"
+export_string = export_header([kernel_stamp, fit_settings])
+export_string += f"Pore size (nm)\tPSD\tSmoothed PSD\tCumulative PSD\tCumulative SSA\tSSA Smoothed\r\n"
 
 
 for i in range(psd_export.shape[0]):
@@ -1192,7 +1281,7 @@ for i in range(psd_export.shape[0]):
 st.download_button(
     label="Download PSD data as tab-separated values",
     data=export_string,
-    file_name="export_PSD.tsv",
+    file_name=f"export_PSD_{file_tag}.tsv",
     mime="text/plain",
 )
 
@@ -1214,6 +1303,13 @@ if not target_options:
 else:
     target_name = st.selectbox("Predict the isotherm for:", target_options)
     target_config = KERNELS[target_name]
+
+    #Weights can only be transferred between kernels computed on the same structures.
+    if target_config['structures_version'] != kernel_config['structures_version']:
+        st.error(f"{target_name} was computed on structures {target_config['structures_version']} "
+                 f"but {kernel_radio} on {kernel_config['structures_version']}; their "
+                 "structures do not match, so the fit cannot be converted.")
+        st.stop()
 
     #Only the leading atomistic structures share indices across kernels, so only those weights
     #can be transferred. Any DFT weight in the source fit has no target counterpart.
@@ -1257,12 +1353,19 @@ else:
     st.pyplot(fig)
 
     #Export predicted isotherm as tab-separated values
-    convert_export = "Relative pressure\tAdsorbed amount (cm3/g STP)\r\n"
+    convert_export = export_header([
+        f"Predicted from: {kernel_version_text(kernel_config)}, data "
+        f"{kernel_data.fingerprint(MANIFEST, kernel_config['key'])}",
+        fit_settings,
+        f"Predicted with: {kernel_version_text(target_config)}, data "
+        f"{kernel_data.fingerprint(MANIFEST, target_config['key'])}",
+    ])
+    convert_export += "Relative pressure\tAdsorbed amount (cm3/g STP)\r\n"
     for pressure, amount in zip(np_target_pressure, predicted_isotherm):
         convert_export += f"{pressure:.8e}\t{amount:.7f}\r\n"
     st.download_button(
         label=f"Download predicted {target_name} isotherm as tab-separated values",
         data=convert_export,
-        file_name="predicted_isotherm.tsv",
+        file_name=f"predicted_isotherm_{target_config['key']}-v{target_config['version']}.tsv",
         mime="text/plain",
     )
