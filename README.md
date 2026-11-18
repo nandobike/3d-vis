@@ -4,6 +4,12 @@ Script to solve 3D-VIS fit of the paper: 3D Nanostructure Prediction of Porous C
 
 [Here is the published paper in the Carbon journal](https://doi.org/10.1016/j.carbon.2023.118431)
 
+## Kernel versions
+
+The structures and adsorption kernels are versioned data under [`data/`](data/README.md),
+with their history in [`data/CHANGELOG.md`](data/CHANGELOG.md). The Carbon 2023 paper used
+the N₂ 77 K kernel 1.0.0 on structures 1.0.0 (git tag `n2_77k/v1.0.0`).
+
 ## Software Coding
 
 Fernando Vallejos-Burgos

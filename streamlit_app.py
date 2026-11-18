@@ -6,6 +6,8 @@ import matplotlib.ticker as ticker
 import pandas as pd
 from scipy.optimize import nnls
 
+import kernel_data
+
 #some old versions of scipy do not have the cumulative trapezoid function
 try:
     from scipy.integrate import cumulative_trapezoid
@@ -22,62 +24,21 @@ ACTIVATION_ENERGY_EV = 6.0 #eV
 #isotherm normalization; only the N2 77 K kernel has DFT structures.
 CM3_STP_PER_CM3_LIQUID_N2 = 646.5
 
-#Excel file holding every kernel (isotherms, structural details, PSDs)
-EXCEL_DATABASE = r'kernel.xlsx'
+#Versioned kernel database (data/manifest.toml): structure library, kernels, versions.
+MANIFEST = kernel_data.load_manifest()
 
-#Kernel definitions. Each entry describes one simulated adsorption kernel in EXCEL_DATABASE.
-# - isotherm_sheet / isotherm_rows: where to read the isotherm matrix and how many pressure points.
+#Kernel definitions, keyed by display name, in manifest order. Besides the manifest fields
+#(version, pressure_unit, pressure_xlim, ...) each entry has:
 # - structures: total number of structure columns in the kernel.
 # - structures_model: how many of those are atomistic. The remaining (structures - structures_model)
 #   are DFT structures appended at the end. They have no .xyz/render/TEM assets and no
 #   counterpart in DFT-free kernels (e.g. CO2), so they cannot be transferred during conversion.
 #The first structures_model atomistic structures share the same indices across all kernels.
-KERNELS = {
-    "N₂ at 77 K": {
-        "isotherm_sheet": "N2 77 K 1CLJ_2D-NLDFT",
-        "isotherm_rows": 93,
-        "structures": 109,
-        "structures_model": 78,
-        "pressure_unit": "P/P₀",
-        "pressure_xlim": (1e-8, 1.4),
-    },
-    "CO₂ at 298.15 K": {
-        "isotherm_sheet": "CO2 298 K",
-        "isotherm_rows": 50,
-        "structures": 78,
-        "structures_model": 78,
-        "pressure_unit": "bar",
-        "pressure_xlim": (1e-7, 2),
-    },
-    "CO₂ at 273 K": {
-        "isotherm_sheet": "CO2 273 K",
-        "isotherm_rows": 50,
-        "structures": 78,
-        "structures_model": 78,
-        "pressure_unit": "bar",
-        "pressure_xlim": (1e-7, 2),
-    },
-    "H₂ at 77 K": {
-        "isotherm_sheet": "H2 77 K",
-        "isotherm_rows": 35,
-        "structures": 78,
-        "structures_model": 78,
-        "pressure_unit": "bar",
-        "pressure_xlim": (5e-3, 200),
-    },
-    #The Ar sheet also carries 11 trailing columns (Excel CB-CL) built from a carbon black
-    #t-curve plus a Kelvin filling step. Their Kelvin constant is ~4.5x too small, so every
-    #width >= 8 A condenses in the last pressure step, and their widths (7-40 A) do not match
-    #the Details DFT rows (10-60 A). They are excluded until regenerated.
-    "Ar at 87 K": {
-        "isotherm_sheet": "Ar 87 K 1CLJ",
-        "isotherm_rows": 64,
-        "structures": 78,
-        "structures_model": 78,
-        "pressure_unit": "P/P₀",
-        "pressure_xlim": (1e-8, 1.4),
-    },
-}
+KERNELS = kernel_data.kernel_configs(MANIFEST)
+
+#1-based positions of structures that never formed a solid framework (manifest
+#structures.excluded); their isotherms and PSDs are zeroed so they get no weight.
+EXCLUDED_STRUCTURES = kernel_data.excluded_positions(MANIFEST)
 
 
 def find_range(contents):
@@ -238,12 +199,12 @@ def PascalTriangle(n):
 
 def load_kernel(config, n_structures):
     """
-    Load a kernel's structural parameters and isotherm matrix from EXCEL_DATABASE.
+    Load a kernel's structural parameters and isotherm matrix from the kernel database.
 
     Parameters
     ----------
     config : dict
-        One KERNELS entry (isotherm sheet name, row count, structure counts).
+        One KERNELS entry (data files, structure counts).
     n_structures : int
         Number of structure columns to load. Pass structures_model to drop the trailing
         DFT structures, yielding a DFT-free kernel whose fit can be converted to any
@@ -259,25 +220,13 @@ def load_kernel(config, n_structures):
     df_isotherm : pandas.DataFrame
         Column 0 is the pressure grid; columns 1..n_structures are the kernel isotherms.
     """
-    df_structures = pd.read_excel(EXCEL_DATABASE,
-                    sheet_name='Details',
-                    header=1,
-                    nrows=n_structures,
-                    index_col=1,
-                    engine='openpyxl')
-
-    df_isotherm = pd.read_excel(EXCEL_DATABASE,
-                    sheet_name=config['isotherm_sheet'],
-                    header=None,
-                    skiprows=8,
-                    nrows=config['isotherm_rows'],
-                    usecols=range(0, n_structures + 1),
-                    engine='openpyxl')
+    df_structures = kernel_data.read_structures(MANIFEST, config, n_structures)
+    df_isotherm = kernel_data.read_isotherm(config, n_structures)
 
     #Structures 9 and 13 had low density and never formed a solid framework.
     #Zeroing their isotherms removes them from the regression.
-    df_isotherm[9] = 0
-    df_isotherm[13] = 0
+    for s in EXCLUDED_STRUCTURES:
+        df_isotherm[s] = 0
 
     #DFT structures are normalized so each isotherm column saturates at 1000 cm3 STP/g,
     #which is not the per-gram basis of any real wall material. Derive their extensive
@@ -535,13 +484,8 @@ if has_dft and include_dft:
 
 
 #Read pore size distributions and load into dataframe
-df_PSD_pb = pd.read_excel(EXCEL_DATABASE,
-                sheet_name='Poreblazer PSDs_2', #_2 for ultranarrow pores ~1 A
-                header=None,
-                skiprows=6,
-                nrows=210,
-                usecols=range(0,structures+1),
-                engine='openpyxl')
+#(workbook sheet "Poreblazer PSDs_2", whose porosity starts at 0.1 A for ultranarrow pores)
+df_PSD_pb = kernel_data.read_poreblazer_psd(MANIFEST, structures)
 #Convert pore size distribution data to a numpy array
 np_PSD_pb = np.array(df_PSD_pb)[:,1:]
 
@@ -552,8 +496,8 @@ np_psd_basis = np_PSD_pb.astype(float) * np.array(df_structures['Helium volume i
 #Structures 9 and 13 have zeroed isotherms (never formed a solid framework). Zero their
 #PSDs too, otherwise the penalty could assign them weight purely to smooth the combined
 #PSD without affecting the isotherm fit.
-np_psd_basis[:, 8] = 0
-np_psd_basis[:, 12] = 0
+for s in EXCLUDED_STRUCTURES:
+    np_psd_basis[:, s - 1] = 0
 #DFT structures have all-zero columns in the Poreblazer sheet (their PSD is a
 #single-size spike handled separately), so the smoothness penalty cannot see them and
 #some weight may drift toward them at large lambda.

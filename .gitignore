@@ -48,8 +48,9 @@ Thumbs.db
 *.mov
 *.wmv
 
-# virtual environment
+# virtual environments
 venv
+.venv
 
 # CLAUDE
 CLAUDE.md

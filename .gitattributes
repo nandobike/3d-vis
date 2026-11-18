@@ -1,0 +1,2 @@
+# Keep data files byte-identical across platforms (their sha256 is in versions.lock.json)
+data/** text eol=lf

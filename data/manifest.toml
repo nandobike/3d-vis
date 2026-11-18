@@ -1,0 +1,81 @@
+# Kernel database manifest: what the app loads and which version it is.
+#
+# Versions follow Pride Versioning (https://pridever.org), PROUD.DEFAULT.SHAME:
+#   PROUD   a published release, or a new generation of the structure library
+#   DEFAULT an intentional change: new structures, a new large-pore model, a new grid
+#   SHAME   a fix to wrong data
+# Kernels that are not peer-reviewed stay at 0.x until published.
+#
+# Any change to a data file needs a version bump here; tools/data_lock.py enforces it.
+# The CSV files are generated from kernel.xlsx by tools/export_kernels.py.
+# Changes are described in data/CHANGELOG.md.
+
+schema = 1
+
+[structures]
+version = "1.0.0"
+label = "Carbon 2023"
+reference = "https://doi.org/10.1016/j.carbon.2023.118431"
+file = "structures/structures.csv"
+poreblazer_psd = "structures/poreblazer_psd.csv"
+# Structures that never formed a solid framework (low density, not connected in 3D).
+# Their isotherms and PSDs are zeroed so they never receive weight in the fit.
+excluded = ["009", "013"]
+
+# One table per kernel, in the order the app lists them.
+
+[[kernels]]
+key = "n2_77k"
+name = "N₂ at 77 K"
+version = "1.1.0"
+structures = "1.0.0"
+published = false
+description = "Carbon 2023 atomistic structures plus 2D-NLDFT slit pores for large pores. The Carbon 2023 paper used version 1.0.0, which modeled large pores with the Kelvin equation (git tag n2_77k/v1.0.0, data/legacy/)."
+isotherm = "kernels/n2_77k/isotherm.csv"
+dft_pores = "kernels/n2_77k/dft_pores.csv"
+pressure_unit = "P/P₀"
+pressure_xlim = [1e-8, 1.4]
+
+[[kernels]]
+key = "co2_298k"
+name = "CO₂ at 298.15 K"
+version = "0.1.0"
+structures = "1.0.0"
+published = false
+description = "Carbon 2023 atomistic structures."
+isotherm = "kernels/co2_298k/isotherm.csv"
+pressure_unit = "bar"
+pressure_xlim = [1e-7, 2]
+
+[[kernels]]
+key = "co2_273k"
+name = "CO₂ at 273 K"
+version = "0.1.0"
+structures = "1.0.0"
+published = false
+description = "Carbon 2023 atomistic structures."
+isotherm = "kernels/co2_273k/isotherm.csv"
+pressure_unit = "bar"
+pressure_xlim = [1e-7, 2]
+
+[[kernels]]
+key = "h2_77k"
+name = "H₂ at 77 K"
+version = "0.1.0"
+structures = "1.0.0"
+published = false
+description = "Carbon 2023 atomistic structures."
+isotherm = "kernels/h2_77k/isotherm.csv"
+pressure_unit = "bar"
+pressure_xlim = [5e-3, 200]
+
+[[kernels]]
+key = "ar_87k"
+name = "Ar at 87 K"
+version = "0.1.0"
+structures = "1.0.0"
+published = false
+description = "Carbon 2023 atomistic structures only. The Kelvin large-pore columns (workbook CB-CL) have a Kelvin constant about 4.5x too small and are left out until regenerated; the full sheet is in data/legacy/."
+isotherm = "kernels/ar_87k/isotherm.csv"
+pressure_unit = "P/P₀"
+pressure_xlim = [1e-8, 1.4]

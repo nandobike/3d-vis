@@ -1,0 +1,22 @@
+{
+  "ar_87k@0.1.0": {
+    "kernels/ar_87k/isotherm.csv": "2b46970188af36eb1099cb36b50094fcc94b7f4922c134d9fb6eb4869dc056d0"
+  },
+  "co2_273k@0.1.0": {
+    "kernels/co2_273k/isotherm.csv": "2d50d1d79cbfd1ded591c924f35f0da2dd6106e9f2576614ac95afc740eab085"
+  },
+  "co2_298k@0.1.0": {
+    "kernels/co2_298k/isotherm.csv": "b66781b44986848d03ea463082cd9cb64cd07f4434dc7947a3f718e58b94dbbc"
+  },
+  "h2_77k@0.1.0": {
+    "kernels/h2_77k/isotherm.csv": "865782d22654911ccb956d774da3e3fead308181a0f522819acd15cf9b976787"
+  },
+  "n2_77k@1.1.0": {
+    "kernels/n2_77k/isotherm.csv": "c4e476b7e27c07502bc389fec0dd7f1351b43b6e3aa077f6a4b9aea28c841b47",
+    "kernels/n2_77k/dft_pores.csv": "23c6b8938947b6c8a3ce4fca5a408e44ad00a409ca06585e1092cf2858871b73"
+  },
+  "structures@1.0.0": {
+    "structures/structures.csv": "d40885f15abe085c74d55ea20b08de61d68e597e3772d4594d3f1e6bddb62a50",
+    "structures/poreblazer_psd.csv": "1399164b96c27ba385759a7a765032e85fe1468d275cf74307f97551e3d2d856"
+  }
+}
